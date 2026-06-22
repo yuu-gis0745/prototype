@@ -1,24 +1,25 @@
 app:
-  description: '測量データ入力・整理の効率化のために、入力データのエラーの自動抽出、GISデータへの自動変換を行うためのアプリです。
+  description: '森林調査票データ入力・整理の効率化のために、入力データのエラーの自動抽出、GISデータへの自動変換を行うためのアプリである。
 
-    変更点は以下のとおりです。
+    このワークフローの内容は、以下のとおりである。
 
-    - FastAPI実施には、ngork→Renderへ変更
+    - FastAPI実施には、ngork→Renderでデプロイして実行する方法
 
     - 既存のエラー判別コードで「エラーがない」と判断された場合でも、追加エラー候補を抽出できるようにワークフローを修正
+      (現状、既存エラー判別コードへ追加できないため、今後の課題である)
 
     - xlsx以外にも、PDF形式→xlsx形式へ出力できるようにノードを追加'
   icon: 🤖
   icon_background: '#FFEAD5'
   icon_type: emoji
   mode: workflow
-  name: 調査データチェック・GIS変換アシスタント_ver3.3
+  name: 森林調査票データチェック・GIS変換アシスタント
   use_icon_as_answer_icon: false
 dependencies:
 - current_identifier: null
   type: marketplace
   value:
-    marketplace_plugin_unique_identifier: langgenius/openai:0.3.8@592c8252795b5f75807de2d609a03196ed02596b409f7642b4a07548c7ff57ef
+    marketplace_plugin_unique_identifier: langgenius/openai:0.4.2@21195ee1321849e0a7d4b3f6b2fd8c2be23ea6c7182e1b444ecc4c1711b52468
     version: null
 kind: app
 version: 0.6.0
@@ -504,9 +505,9 @@ workflow:
           write: 60
         title: HTTPリクエスト(analyze実行)
         type: http-request
-        url: https://forest-survey-api.onrender.com/analyze
+        url: {{Render_API_BASE_URL}}/analyze
         variables: []
-      height: 229
+      height: 230
       id: '1780355579484'
       position:
         x: 96.78228850956899
@@ -765,9 +766,9 @@ workflow:
           write: 60
         title: HTTPリクエスト(xlsx:export_error_log)
         type: http-request
-        url: https://forest-survey-api.onrender.com/export_error_log
+        url: {{Render_API_BASE_URL}}/export_error_log
         variables: []
-      height: 165
+      height: 166
       id: '1780489017890'
       position:
         x: 2804.7129861350254
@@ -810,9 +811,9 @@ workflow:
           max_write_timeout: 0
         title: HTTP リクエスト(export_gis_csv)
         type: http-request
-        url: https://forest-survey-api.onrender.com/export_gis_csv
+        url: {{Render_API_BASE_URL}}/export_gis_csv
         variables: []
-      height: 165
+      height: 166
       id: '1780489102239'
       position:
         x: 2488.282707691909
@@ -958,9 +959,9 @@ workflow:
           write: 60
         title: HTTPリクエスト(add_rules)
         type: http-request
-        url: https://forest-survey-api.onrender.com/add_rules
+        url: {{Render_API_BASE_URL}}/add_rules
         variables: []
-      height: 197
+      height: 198
       id: '1780442810188'
       position:
         x: 1929.184519390821
@@ -1005,7 +1006,7 @@ workflow:
         type: http-request
         url: '{{#env.slack_webhook_url#}}'
         variables: []
-      height: 168
+      height: 169
       id: '1780457989767'
       position:
         x: 2385.597318322161
@@ -1075,7 +1076,7 @@ workflow:
         type: http-request
         url: '{{#env.slack_webhook_url#}}'
         variables: []
-      height: 152
+      height: 153
       id: '17807248650960'
       position:
         x: 2063.8356727889513
@@ -1183,9 +1184,9 @@ workflow:
           write: 60
         title: HTTP リクエスト(pdf_ocr)
         type: http-request
-        url: https://forest-survey-api.onrender.com/ocr_pdf
+        url: {{Render_API_BASE_URL}}/ocr_pdf
         variables: []
-      height: 165
+      height: 166
       id: '1780734950724'
       position:
         x: -1265.46913394774
@@ -1193,7 +1194,7 @@ workflow:
       positionAbsolute:
         x: -1265.46913394774
         y: -24.428459282346097
-      selected: false
+      selected: true
       sourcePosition: right
       targetPosition: left
       type: custom
@@ -1275,7 +1276,7 @@ workflow:
             : null, \"樹高(m)\": null, \"枝下高(m)\": null,\n         \"胸高直径(cm)\": null,\
             \ \"異常区分\": null, \"被害区分\": null, \"備考\": \"\"}\n      ]\n    }\n  ]\n\
             }"
-        selected: true
+        selected: false
         title: LLM(OCRからの文字抽出)
         type: llm
         vision:
@@ -1288,7 +1289,7 @@ workflow:
       positionAbsolute:
         x: -820.3334244156272
         y: 217.4301516911673
-      selected: true
+      selected: false
       sourcePosition: right
       targetPosition: left
       type: custom
@@ -1370,9 +1371,9 @@ workflow:
           write: 60
         title: HTTP リクエスト(xlsxフォーマットへの変換)
         type: http-request
-        url: https://forest-survey-api.onrender.com/build_xlsx_from_json
+        url: {{Render_API_BASE_URL}}/build_xlsx_from_json
         variables: []
-      height: 165
+      height: 166
       id: '1780746305685'
       position:
         x: -700.6881553436951
@@ -1485,9 +1486,9 @@ workflow:
           write: 60
         title: 'HTTPリクエスト(PDF:export_error_log) '
         type: http-request
-        url: https://forest-survey-api.onrender.com/export_error_log
+        url: {{Render_API_BASE_URL}}/export_error_log
         variables: []
-      height: 165
+      height: 166
       id: '17808026966440'
       position:
         x: 3082.712841568648
@@ -1556,9 +1557,9 @@ workflow:
           write: 60
         title: HTTPリクエスト(PDF:export_ocr_csv)
         type: http-request
-        url: https://forest-survey-api.onrender.com/export_ocr_csv
+        url: {{Render_API_BASE_URL}}/export_ocr_csv
         variables: []
-      height: 181
+      height: 182
       id: '1780805142194'
       position:
         x: -230.43164249091365
@@ -1595,7 +1596,7 @@ workflow:
       type: custom
       width: 242
     viewport:
-      x: 1051.5428744078804
-      y: 276.1810034387146
-      zoom: 0.42996052494743653
+      x: 848.9468527639815
+      y: 297.9800627679066
+      zoom: 0.46651649576840387
   rag_pipeline_variables: []
