@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+openpyxl
+python-multipart
+google-cloud-vision
+pymupdf
+openai
+Python 3.12以上を推奨
