@@ -5,4 +5,4 @@ python-multipart
 google-cloud-vision
 pymupdf
 openai
-Python 3.12以上を推奨
+# Python 3.12以上を推奨
