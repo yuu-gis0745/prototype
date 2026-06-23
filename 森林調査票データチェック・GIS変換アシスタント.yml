@@ -1,14 +1,20 @@
 app:
-  description: '森林調査票データ入力・整理の効率化のために、入力データのエラーの自動抽出、GISデータへの自動変換を行うためのアプリである。
+  description: '測量データ入力・整理の効率化のために、入力データのエラーの自動抽出、GISデータへの自動変換を行うためのアプリである。
 
-    このワークフローの内容は、以下のとおりである。
 
-    - FastAPI実施には、ngork→Renderでデプロイして実行する方法
+    ・入力ファイルは、xlsx・PDF形式に対応
 
-    - 既存のエラー判別コードで「エラーがない」と判断された場合でも、追加エラー候補を抽出できるようにワークフローを修正
-      (現状、既存エラー判別コードへ追加できないため、今後の課題である)
+    ・FastAPI実施には、ngork→Renderへ変更
 
-    - xlsx以外にも、PDF形式→xlsx形式へ出力できるようにノードを追加'
+    ・入力されたファイルに対して、既存のエラー判別コードにより検査、エラー抽出実施
+
+    ・LLMを用いて、既存のエラー判別コードにない新規のエラーの可能性があるものを抽出する
+
+    ・エラーや追加エラー候補は、Slack投稿により通知
+
+    ・エラーはlogをcsv形式で出力
+
+    ・エラーがないときのみ、csv形式のGISデータを出力'
   icon: 🤖
   icon_background: '#FFEAD5'
   icon_type: emoji
@@ -26,6 +32,14 @@ version: 0.6.0
 workflow:
   conversation_variables: []
   environment_variables:
+  - description: FastAPIのURL
+    id: 5d7981aa-3087-46d0-99a9-2e93a2ca7d7e
+    name: Render_API_BASE_URL
+    selector:
+    - env
+    - Render_API_BASE_URL
+    value: https://prototype-emrs.onrender.com
+    value_type: string
   - description: slackのncoming WebhookのURLです。
     id: fa27846d-f18b-4039-87cd-1175ce649ec7
     name: slack_webhook_url
@@ -437,7 +451,7 @@ workflow:
       zIndex: 0
     nodes:
     - data:
-        desc: 現地調査結果のファイルをアップロードもしくはURLを入力します。
+        desc: 現地調査結果のxlsx or PDFのファイルをアップロードもしくはURLを入力する。
         selected: false
         title: 開始(現地調査結果入力)
         type: start
@@ -462,11 +476,11 @@ workflow:
       height: 153
       id: '1780096256163'
       position:
-        x: -1495.1413362501241
-        y: -533.4133993097628
+        x: -3258.0039050427085
+        y: -509.6622569158508
       positionAbsolute:
-        x: -1495.1413362501241
-        y: -533.4133993097628
+        x: -3258.0039050427085
+        y: -509.6622569158508
       selected: false
       sourcePosition: right
       targetPosition: left
@@ -486,7 +500,9 @@ workflow:
             type: file
             value: '{{#1780096256163.survey_file#}}'
           type: form-data
-        desc: RenderによるFastAPI呼び出しを行い、main_v2.pyの「analyze」処理を実行します。具体的には、エラー判別のファイルを元に現地調査結果をチェックしエラーがないか検査・抽出します。
+        desc: 'RenderによるFastAPI呼び出しを行い、main.pyの「analyze」処理を実行する。
+
+          具体的には、既存エラー判別のファイルを元に現地調査結果をチェックしエラーがないか検査・抽出する。'
         headers: ''
         method: post
         params: ''
@@ -505,16 +521,16 @@ workflow:
           write: 60
         title: HTTPリクエスト(analyze実行)
         type: http-request
-        url: {{Render_API_BASE_URL}}/analyze
+        url: '{{#env.Render_API_BASE_URL#}}/analyze'
         variables: []
-      height: 230
+      height: 233
       id: '1780355579484'
       position:
-        x: 96.78228850956899
-        y: -486.4520396697652
+        x: 20.250829684741234
+        y: -763.5487009320727
       positionAbsolute:
-        x: 96.78228850956899
-        y: -486.4520396697652
+        x: 20.250829684741234
+        y: -763.5487009320727
       selected: false
       sourcePosition: right
       targetPosition: left
@@ -558,18 +574,18 @@ workflow:
             - llm_error_json
           id: 5b19bc8f-6ddd-4d95-830c-d8028b691889
           logical_operator: and
-        desc: has_errorの内容に応じて、error_log出力処理もしくはGIS用フォーマット出力処理を行います。
+        desc: has_errorの内容に応じて、error_log出力処理もしくはGIS用フォーマット出力処理を行う。
         selected: false
         title: 条件分岐(error・gis出力)
         type: if-else
-      height: 364
+      height: 348
       id: '1780356676554'
       position:
-        x: 1241.5148918963819
-        y: -728.5315309691312
+        x: 1452.6361576200447
+        y: -744.3656258984058
       positionAbsolute:
-        x: 1241.5148918963819
-        y: -728.5315309691312
+        x: 1452.6361576200447
+        y: -744.3656258984058
       selected: false
       sourcePosition: right
       targetPosition: left
@@ -603,7 +619,7 @@ workflow:
           : gis_summary_md,\n        \"survey_text_for_llm\": survey_text_for_llm,\n\
           \    }"
         code_language: python3
-        desc: json形式のデータをMarkdown形式へ変換します。
+        desc: json形式のデータをMarkdown形式へ変換する。
         outputs:
           error_count:
             children: null
@@ -635,17 +651,18 @@ workflow:
       height: 96
       id: '1780371392037'
       position:
-        x: 440.48704548695366
-        y: -883.015509385677
+        x: 377.15066576985475
+        y: -749.5885627268516
       positionAbsolute:
-        x: 440.48704548695366
-        y: -883.015509385677
+        x: 377.15066576985475
+        y: -749.5885627268516
       selected: false
       sourcePosition: right
       targetPosition: left
       type: custom
       width: 242
     - data:
+        desc: error_log.csvを出力する。
         outputs:
         - value_selector:
           - '1780489017890'
@@ -655,20 +672,21 @@ workflow:
         selected: false
         title: 出力(xlsx:error.log)
         type: end
-      height: 88
+      height: 116
       id: '1780372585058'
       position:
-        x: 3097.3290172375623
-        y: -1362.8801352857524
+        x: 3453.5961531462435
+        y: -1370.7971827503898
       positionAbsolute:
-        x: 3097.3290172375623
-        y: -1362.8801352857524
+        x: 3453.5961531462435
+        y: -1370.7971827503898
       selected: false
       sourcePosition: right
       targetPosition: left
       type: custom
       width: 242
     - data:
+        desc: gis_plot_summary.csvを出力する。
         outputs:
         - value_selector:
           - '1780489102239'
@@ -678,14 +696,14 @@ workflow:
         selected: false
         title: 出力(GIS用CSV出力)
         type: end
-      height: 88
+      height: 116
       id: '1780391752679'
       position:
-        x: 2810.348940499697
-        y: -168.90460919014683
+        x: 3441.022466068313
+        y: -556.0180289616774
       positionAbsolute:
-        x: 2810.348940499697
-        y: -168.90460919014683
+        x: 3441.022466068313
+        y: -556.0180289616774
       selected: false
       sourcePosition: right
       targetPosition: left
@@ -695,7 +713,7 @@ workflow:
         context:
           enabled: false
           variable_selector: []
-        desc: エラーの修正方法について指示を出力します。また、追加エラー候補についても指示を出します。
+        desc: 既存エラーの修正方法と、追加エラー候補についても指示を出すためのプロンプト
         model:
           completion_params: {}
           mode: chat
@@ -716,11 +734,11 @@ workflow:
             \n### Slack投稿文の必須項目\n必ず先頭に現地担当者への確認をすることを前提とした文章を出力してください。\n\n### 制約\n\
             - 専門用語は使わないようにしてください。\n- 修正後の数値や選択肢そのものの提案はしないでください。\n- 修正を行う理由についても、説明してください。"
         selected: false
-        title: 'LLM(エラー内容・エラー候補に対するSlack投稿文作成) '
+        title: 'LLM(既存エラー内容・追加エラー候補に対するSlack投稿文作成) '
         type: llm
         vision:
           enabled: false
-      height: 148
+      height: 132
       id: '1780411223891'
       position:
         x: 1956.5890080124564
@@ -766,16 +784,16 @@ workflow:
           write: 60
         title: HTTPリクエスト(xlsx:export_error_log)
         type: http-request
-        url: {{Render_API_BASE_URL}}/export_error_log
+        url: '{{#env.Render_API_BASE_URL#}}/export_error_log'
         variables: []
-      height: 166
+      height: 169
       id: '1780489017890'
       position:
-        x: 2804.7129861350254
-        y: -1451.380035148374
+        x: 2907.6346031753114
+        y: -1578.0527945825718
       positionAbsolute:
-        x: 2804.7129861350254
-        y: -1451.380035148374
+        x: 2907.6346031753114
+        y: -1578.0527945825718
       selected: false
       sourcePosition: right
       targetPosition: left
@@ -811,16 +829,16 @@ workflow:
           max_write_timeout: 0
         title: HTTP リクエスト(export_gis_csv)
         type: http-request
-        url: {{Render_API_BASE_URL}}/export_gis_csv
+        url: '{{#env.Render_API_BASE_URL#}}/export_gis_csv'
         variables: []
-      height: 166
+      height: 169
       id: '1780489102239'
       position:
-        x: 2488.282707691909
-        y: -156.20540077440123
+        x: 2939.554413176238
+        y: -602.199074615639
       positionAbsolute:
-        x: 2488.282707691909
-        y: -156.20540077440123
+        x: 2939.554413176238
+        y: -602.199074615639
       selected: false
       sourcePosition: right
       targetPosition: left
@@ -830,7 +848,7 @@ workflow:
         context:
           enabled: false
           variable_selector: []
-        desc: 新規のエラー候補を出力します。
+        desc: 追加エラー候補を出力するためのプロンプト
         model:
           completion_params: {}
           mode: chat
@@ -866,11 +884,11 @@ workflow:
       height: 116
       id: '1780442563959'
       position:
-        x: 845.7757165327675
-        y: -942.2367176996939
+        x: 740.2150836709361
+        y: -749.5885627268516
       positionAbsolute:
-        x: 845.7757165327675
-        y: -942.2367176996939
+        x: 740.2150836709361
+        y: -749.5885627268516
       selected: false
       sourcePosition: right
       targetPosition: left
@@ -894,7 +912,7 @@ workflow:
           \  \"combined_error_md\": combined_error_md,\n        \"llm_error_json\"\
           : json.dumps(llm_errors, ensure_ascii=False)\n    }"
         code_language: python3
-        desc: 既存のエラーと、抽出したエラー候補を結合します。
+        desc: 既存のエラーと、抽出した追加エラー候補を結合する。
         outputs:
           combined_error_md:
             children: null
@@ -919,11 +937,11 @@ workflow:
       height: 96
       id: '1780442733681'
       position:
-        x: 997.4026690150171
-        y: -714.5921777475468
+        x: 1038.423551098591
+        y: -744.3656258984058
       positionAbsolute:
-        x: 997.4026690150171
-        y: -714.5921777475468
+        x: 1038.423551098591
+        y: -744.3656258984058
       selected: false
       sourcePosition: right
       targetPosition: left
@@ -940,7 +958,7 @@ workflow:
             type: text
             value: '{{#1780442733681.llm_error_json#}}'
           type: json
-        desc: RenderによるFastAPI呼び出しを行い、main_v2.pyの「add_rules」処理を実行します。
+        desc: RenderによるFastAPI呼び出しを行い、main.pyの「add_rules」処理を実行する。
         headers: Content-Type:application/json
         method: post
         params: ''
@@ -959,9 +977,9 @@ workflow:
           write: 60
         title: HTTPリクエスト(add_rules)
         type: http-request
-        url: {{Render_API_BASE_URL}}/add_rules
+        url: '{{#env.Render_API_BASE_URL#}}/add_rules'
         variables: []
-      height: 198
+      height: 185
       id: '1780442810188'
       position:
         x: 1929.184519390821
@@ -1009,17 +1027,18 @@ workflow:
       height: 169
       id: '1780457989767'
       position:
-        x: 2385.597318322161
-        y: -720.2601559117004
+        x: 2952.9857199545045
+        y: -855.5315627788589
       positionAbsolute:
-        x: 2385.597318322161
-        y: -720.2601559117004
+        x: 2952.9857199545045
+        y: -855.5315627788589
       selected: false
       sourcePosition: right
       targetPosition: left
       type: custom
       width: 242
     - data:
+        desc: 既存エラー・追加エラー候補のSlack投稿文を出力する。
         outputs:
         - value_selector:
           - '1780457989767'
@@ -1029,14 +1048,14 @@ workflow:
         selected: false
         title: 出力(既存エラー・追加エラー候補Slack投稿)
         type: end
-      height: 88
+      height: 132
       id: '1780724775434'
       position:
-        x: 2775.857235749818
-        y: -709.248109978849
+        x: 3453.5961531462435
+        y: -823.9457778330761
       positionAbsolute:
-        x: 2775.857235749818
-        y: -709.248109978849
+        x: 3453.5961531462435
+        y: -823.9457778330761
       selected: false
       sourcePosition: right
       targetPosition: left
@@ -1079,17 +1098,18 @@ workflow:
       height: 153
       id: '17807248650960'
       position:
-        x: 2063.8356727889513
-        y: 38.486882767241156
+        x: 2879.291561646599
+        y: -220.1366677442458
       positionAbsolute:
-        x: 2063.8356727889513
-        y: 38.486882767241156
+        x: 2879.291561646599
+        y: -220.1366677442458
       selected: false
       sourcePosition: right
       targetPosition: left
       type: custom
       width: 242
     - data:
+        desc: エラーがない内容のSlack投稿文を出力する。
         outputs:
         - value_selector:
           - '17807248650960'
@@ -1099,14 +1119,14 @@ workflow:
         selected: false
         title: 出力(Slack投稿)
         type: end
-      height: 88
+      height: 116
       id: '1780725181912'
       position:
-        x: 2789.9144565422152
-        y: 99.51598294934851
+        x: 3441.022466068313
+        y: -197.04899289392537
       positionAbsolute:
-        x: 2789.9144565422152
-        y: 99.51598294934851
+        x: 3441.022466068313
+        y: -197.04899289392537
       selected: false
       sourcePosition: right
       targetPosition: left
@@ -1134,18 +1154,18 @@ workflow:
             - survey_file
           id: 'true'
           logical_operator: and
-        desc: ファイル拡張子により、処理を分岐させます。
+        desc: ファイル拡張子により、処理を分岐させる。
         selected: false
         title: IF/ELSE(ファイル形式分類)
         type: if-else
       height: 176
       id: '1780725444570'
       position:
-        x: -1184.4296914524868
-        y: -439.3613892340115
+        x: -2960.487339352801
+        y: -488.6622569158508
       positionAbsolute:
-        x: -1184.4296914524868
-        y: -439.3613892340115
+        x: -2960.487339352801
+        y: -488.6622569158508
       selected: false
       sourcePosition: right
       targetPosition: left
@@ -1165,7 +1185,7 @@ workflow:
             type: file
             value: ''
           type: form-data
-        desc: PDFからOCRにより読み取り
+        desc: PDFからAI OCRにより読み取りを実行する。
         headers: ''
         method: post
         params: ''
@@ -1184,17 +1204,17 @@ workflow:
           write: 60
         title: HTTP リクエスト(pdf_ocr)
         type: http-request
-        url: {{Render_API_BASE_URL}}/ocr_pdf
+        url: '{{#env.Render_API_BASE_URL#}}/ocr_pdf'
         variables: []
-      height: 166
+      height: 169
       id: '1780734950724'
       position:
-        x: -1265.46913394774
-        y: -24.428459282346097
+        x: -2629.840313686911
+        y: -71.93074407017019
       positionAbsolute:
-        x: -1265.46913394774
-        y: -24.428459282346097
-      selected: true
+        x: -2629.840313686911
+        y: -71.93074407017019
+      selected: false
       sourcePosition: right
       targetPosition: left
       type: custom
@@ -1208,7 +1228,7 @@ workflow:
           : ocr_warning_text,\n        \"has_ocr_warning\": len(warnings) > 0\n  \
           \  }"
         code_language: python3
-        desc: OCRから読み取ったテキストを、jsonに変換します。
+        desc: OCRから読み取ったテキストを、jsonに変換する。
         outputs:
           has_ocr_warning:
             children: null
@@ -1231,11 +1251,11 @@ workflow:
       height: 96
       id: '1780735730593'
       position:
-        x: -895.5198280183191
-        y: 24.40286971929598
+        x: -2185.998564754208
+        y: -16.511411817708705
       positionAbsolute:
-        x: -895.5198280183191
-        y: 24.40286971929598
+        x: -2185.998564754208
+        y: -16.511411817708705
       selected: false
       sourcePosition: right
       targetPosition: left
@@ -1284,11 +1304,11 @@ workflow:
       height: 116
       id: '1780736501150'
       position:
-        x: -820.3334244156272
-        y: 217.4301516911673
+        x: -1778.2961676367474
+        y: -43.83241464186543
       positionAbsolute:
-        x: -820.3334244156272
-        y: 217.4301516911673
+        x: -1778.2961676367474
+        y: -43.83241464186543
       selected: false
       sourcePosition: right
       targetPosition: left
@@ -1308,7 +1328,7 @@ workflow:
           \ ensure_ascii=False),\n            \"parse_ok\": False,\n            \"\
           error_message\": str(e)\n        }"
         code_language: python3
-        desc: 生成AIでは、jsonで読み取ったデータをコードブロックすることがあるので、整形します。
+        desc: 生成AIでは、jsonで読み取ったデータをコードブロックすることがあるため、整形する。
         outputs:
           error_message:
             children: null
@@ -1331,12 +1351,12 @@ workflow:
       height: 96
       id: '1780746211984'
       position:
-        x: -802.683706253239
-        y: 372.7856479443881
+        x: -1304.0967123469384
+        y: 153.74733475608787
       positionAbsolute:
-        x: -802.683706253239
-        y: 372.7856479443881
-      selected: false
+        x: -1304.0967123469384
+        y: 153.74733475608787
+      selected: true
       sourcePosition: right
       targetPosition: left
       type: custom
@@ -1352,7 +1372,7 @@ workflow:
             type: text
             value: '{{#1780746211984.plots_json#}}'
           type: json
-        desc: jsonから、xlsxフォーマットへ変換
+        desc: jsonから、xlsxフォーマットへ変換する。
         headers: Content-Type:application/json
         method: post
         params: ''
@@ -1371,23 +1391,23 @@ workflow:
           write: 60
         title: HTTP リクエスト(xlsxフォーマットへの変換)
         type: http-request
-        url: {{Render_API_BASE_URL}}/build_xlsx_from_json
+        url: '{{#env.Render_API_BASE_URL#}}/build_xlsx_from_json'
         variables: []
-      height: 166
+      height: 169
       id: '1780746305685'
       position:
-        x: -700.6881553436951
-        y: 564.7698641341829
+        x: -832.6389464209844
+        y: -163.598502612454
       positionAbsolute:
-        x: -700.6881553436951
-        y: 564.7698641341829
+        x: -832.6389464209844
+        y: -163.598502612454
       selected: false
       sourcePosition: right
       targetPosition: left
       type: custom
       width: 242
     - data:
-        desc: xlsx、PDF両方を1つの変数に集約し、次のanalyze処理が実行可能にするものです。
+        desc: xlsx、PDF両方を1つの変数に集約し、次のanalyze処理を実行可能にする。
         output_type: array[file]
         selected: false
         title: 変数集約器(xlsx、PDF形式を次の処理に進ませる)
@@ -1400,11 +1420,11 @@ workflow:
       height: 178
       id: '1780792434830'
       position:
-        x: -425.1664462493204
-        y: -300.25063008732207
+        x: -401.4153038554084
+        y: -527.2059907402597
       positionAbsolute:
-        x: -425.1664462493204
-        y: -300.25063008732207
+        x: -401.4153038554084
+        y: -527.2059907402597
       selected: false
       sourcePosition: right
       targetPosition: left
@@ -1432,7 +1452,7 @@ workflow:
             - survey_file
           id: 'true'
           logical_operator: and
-        desc: ファイル拡張子により、処理を分岐させます。
+        desc: ファイル拡張子により、処理を分岐させる。
         isInIteration: false
         isInLoop: false
         selected: false
@@ -1486,23 +1506,23 @@ workflow:
           write: 60
         title: 'HTTPリクエスト(PDF:export_error_log) '
         type: http-request
-        url: {{Render_API_BASE_URL}}/export_error_log
+        url: '{{#env.Render_API_BASE_URL#}}/export_error_log'
         variables: []
-      height: 166
+      height: 169
       id: '17808026966440'
       position:
-        x: 3082.712841568648
-        y: -1117.534812072287
+        x: 2919.093860632809
+        y: -1136.0079228231075
       positionAbsolute:
-        x: 3082.712841568648
-        y: -1117.534812072287
+        x: 2919.093860632809
+        y: -1136.0079228231075
       selected: false
       sourcePosition: right
       targetPosition: left
       type: custom
       width: 242
     - data:
-        desc: ''
+        desc: error_log.csvを出力する。
         isInIteration: false
         isInLoop: false
         outputs:
@@ -1514,7 +1534,7 @@ workflow:
         selected: false
         title: 出力(PDF:error.log)
         type: end
-      height: 88
+      height: 116
       id: '17808027726860'
       position:
         x: 3441.022466068313
@@ -1557,22 +1577,23 @@ workflow:
           write: 60
         title: HTTPリクエスト(PDF:export_ocr_csv)
         type: http-request
-        url: {{Render_API_BASE_URL}}/export_ocr_csv
+        url: '{{#env.Render_API_BASE_URL#}}/export_ocr_csv'
         variables: []
-      height: 182
+      height: 185
       id: '1780805142194'
       position:
-        x: -230.43164249091365
-        y: 334.39187407711523
+        x: 2853.568357509083
+        y: 217.4301516911673
       positionAbsolute:
-        x: -230.43164249091365
-        y: 334.39187407711523
+        x: 2853.568357509083
+        y: 217.4301516911673
       selected: false
       sourcePosition: right
       targetPosition: left
       type: custom
       width: 242
     - data:
+        desc: PDFからの読み取り結果を確認するために、:export_ocr_csvを出力する。
         outputs:
         - value_selector:
           - '1780805142194'
@@ -1582,21 +1603,21 @@ workflow:
         selected: false
         title: 出力(PDF:OCR抽出CSV)
         type: end
-      height: 88
+      height: 132
       id: '1780805428741'
       position:
-        x: 581.0069234097891
-        y: 344.79875933926195
+        x: 3471.629416096285
+        y: 233.17792876110514
       positionAbsolute:
-        x: 581.0069234097891
-        y: 344.79875933926195
+        x: 3471.629416096285
+        y: 233.17792876110514
       selected: false
       sourcePosition: right
       targetPosition: left
       type: custom
       width: 242
     viewport:
-      x: 848.9468527639815
-      y: 297.9800627679066
-      zoom: 0.46651649576840387
+      x: 369.01262904857447
+      y: 738.4262720362069
+      zoom: 0.2500000000000002
   rag_pipeline_variables: []
