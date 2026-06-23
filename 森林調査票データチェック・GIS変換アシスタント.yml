@@ -38,9 +38,9 @@ workflow:
     selector:
     - env
     - Render_API_BASE_URL
-    value: https://prototype-emrs.onrender.com
+    value: ''
     value_type: string
-  - description: slackのncoming WebhookのURLです。
+  - description: slackのIncoming WebhookのURLです。
     id: fa27846d-f18b-4039-87cd-1175ce649ec7
     name: slack_webhook_url
     selector:
