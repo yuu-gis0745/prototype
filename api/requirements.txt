@@ -22,7 +22,6 @@ fastapi-cli==0.0.27
 fastapi-cloud-cli==0.20.0
 fastar==0.11.0
 filelock==3.29.4
-fitz==0.0.1.dev2
 google-api-core==2.31.0
 google-auth==2.55.0
 google-cloud==0.34.0
