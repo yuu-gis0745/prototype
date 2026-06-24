@@ -1,14 +1,45 @@
+import os
+from pathlib import Path
 import io
 import csv
 import json
-import os
-from pathlib import Path
 from openpyxl import load_workbook
 from openpyxl.worksheet.worksheet import Worksheet
 from google.cloud import vision
 import fitz
 from fastapi import FastAPI, UploadFile, File, Request
 from fastapi.responses import Response
+
+# ==============================================================================================
+# 入力されたxlsx、PDFから、以下の処理を実行するコードです。
+# ・エラー判定のルール設定
+# ・既存エラールールによるチェック
+# ・OCRによるPDF処理
+# ・PDF/OCR → Excelフォーマット復元
+# ・Google Cloud Vision API呼び出し
+# ・PDF/OCRで抽出した調査データをCSVとして出力
+# ・LLM用：調査データをテキスト形式にまとめる
+# ・追加エラー候補追加
+# ・エラーログをUTF-8 BOM付きCSVで返す
+# ・GIS結合用CSV出力
+# ・エラーなし(GIS用フォーマット出力)
+# ・メインの処理
+# ==============================================================================================
+
+# ==============================================================================================
+# 共通設定
+# ==============================================================================================
+
+# appという変数に、FatAPI()を代入することで、FastAPIのインスタンスを作成する
+app = FastAPI()
+@app.get("/")
+def read_root():
+    return {"status": "ok"}
+
+# masterフォルダのパスを定義する
+# 環境変数 MASTER_DIR があればそれを使い、なければ従来の ./master を使う
+DEFAULT_MASTER_DIR = Path(__file__).parent / "master"
+MASTER_DIR = Path(os.environ.get("MASTER_DIR", DEFAULT_MASTER_DIR))
 
 # ==============================================================================================
 # 型ヒント定義
@@ -34,29 +65,6 @@ type TreeInfoList = list[tuple[str, int]]
 
 # dict{"番号": "A7:A76", "樹種", "B7:B76", ・・・}
 type TreeInfoMap = dict[str, int]
-
-# ==============================================================================================
-# 入力されたxlsxから、以下の処理を実行するコードです。
-# ・エラー判定のルール設定
-# ・エラー判定
-# ・エラーログ出力
-# ・GIS用のcsv出力
-# ・OCRによるpdf読み取り
-# ・既存のエラー判別コードにないエラー候補を追加
-# ==============================================================================================
-
-app = FastAPI()
-
-# masterフォルダのパスを定義する
-# 環境変数 MASTER_DIR があればそれを使い、なければ従来の ./master を使う
-DEFAULT_MASTER_DIR = Path(__file__).parent / "master"
-MASTER_DIR = Path(os.environ.get("MASTER_DIR", DEFAULT_MASTER_DIR))
-
-# Cloud Vision API 認証ファイルのパスを設定する
-# 環境変数 GOOGLE_APPLICATION_CREDENTIALS が未設定のときだけ、ローカル既定値を補う
-DEFAULT_GCP_KEY = "C:/Users/Owner/Documents/gcp_keys/vision-ocr.json"
-os.environ.setdefault("GOOGLE_APPLICATION_CREDENTIALS", DEFAULT_GCP_KEY)
-
 
 # ==============================================================================================
 # エラー判定のルール設定
@@ -308,7 +316,7 @@ def get_tree_rules(check_rules: list[Rule]) -> list[Rule]:
 
 
 # ==============================================================================================
-# 既存エラー判別コードによるチェック
+# 既存エラールールによるチェック
 # ==============================================================================================
 
 def calc_average(values: list[float | None]) -> float | None:
@@ -334,9 +342,12 @@ def calc_average(values: list[float | None]) -> float | None:
     return sum(valid_values) / len(valid_values)
 
 def make_error(sheet_name: str, row_no: str | int, item_name: str, rule: Rule) -> ErrorRow:
-# row_no: check_basic_info(基本情報欄のエラー判別関数) 、check_tree_rows(毎木情報欄のエラー判別関数)から代入
-# item_name:rule["target_column"]: check_rules_forest_survey.csvの["target_column"]：エラーを判別する項目
-# rule:load_check_rules() でCSVから読み込んだルールを、basic_rules / tree_rules 経由で1件ずつ取り出したもの
+# row_no: 
+# check_basic_info(基本情報欄のエラー判別関数) 、check_tree_rows(毎木情報欄のエラー判別関数)から代入
+# item_name:rule["target_column"]: 
+# check_rules_forest_survey.csvの["target_column"]：エラーを判別する項目
+# rule:
+# load_check_rules() でCSVから読み込んだルールを、basic_rules / tree_rules 経由で1件ずつ取り出したもの
     """
     error_log.csv に出力するエラー情報を作成する関数
     """
@@ -354,7 +365,8 @@ def make_error(sheet_name: str, row_no: str | int, item_name: str, rule: Rule) -
 
 def check_basic_info(ws: Worksheet, sheet_name: str, basic_information: BasicInfoMapping,
                      basic_rules: list[Rule]) -> list[ErrorRow]:
-    # load_basic_inf_cell_mapping(basic_information):森林調査票の基本情報欄の項目名とセル位置が記載されたセル位置を取得する関数
+    # load_basic_inf_cell_mapping(basic_information):
+    # 森林調査票の基本情報欄の項目名とセル位置が記載されたセル位置を取得する関数
     # →list[(調査ID, B2),(地域名,D2)・・・]
     # basic_rules = get_basic_rules(check_rules):基本情報欄で使うルールを取り出す関数
     """
@@ -417,7 +429,8 @@ def check_basic_info(ws: Worksheet, sheet_name: str, basic_information: BasicInf
 
 def check_tree_rows(ws: Worksheet, sheet_name: str, tree_information: TreeInfoMap, 
                     start_row: int, end_row: int, tree_rules: list[Rule]) -> list[ErrorRow]:
-    # load_tree_inf_cell_mapping(tree_information): 森林調査票の毎木情報欄の項目名とセル位置が記載されたセル位置を取得する関数
+    # load_tree_inf_cell_mapping(tree_information): 
+    # 森林調査票の毎木情報欄の項目名とセル位置が記載されたセル位置を取得する関数
     # →list[(番号, A7:A76),(樹種, B7:B76)・・・]
     # tree_information = dict(load_tree_inf_cell_mapping(cell_mapping_file))
     # → dict{"番号": "A7:A76", "樹種", "B7:B76", ・・・}
@@ -575,114 +588,28 @@ def check_tree_rows(ws: Worksheet, sheet_name: str, tree_information: TreeInfoMa
     return errors
     # →appendでエラー内容を追加しているため、list型となる
 
-# ==============================================================================================
-# GIS結合用csv出力
-# ==============================================================================================
-
-def create_gis_summary_row(ws: Worksheet, sheet_name: str, tree_information: TreeInfoMap, 
-                           start_row: int, end_row: int) -> dict:
-    # load_tree_inf_cell_mapping(tree_information)
-    # → dict{"番号": "A7:A76", "樹種", "B7:B76"}
-    # load_tree_data_cell_mapping(start_row, end_row)
-    # →いずれもint型
-    """
-    GIS結合用CSVに出力する1地点分の集計行を作成する関数
-    """
-    # 基本情報欄の出力
-    plot_id = ws["B2"].value # 調査IDのセル値取得
-    area_name = ws["D2"].value # 地域名のセル値取得
-    survey_date = ws["F2"].value # 調査日時のセル値取得
-    weather = ws["H2"].value # 天気のセル値取得
-    writer = ws["B3"].value # 記帳者のセル値取得
-    tree_species = ws["D3"].value # 対象樹種のセル値取得
-    area = ws["F3"].value # 面積(㎡)ののセル値取得
-    slope_position = ws["H3"].value # 斜面位置のセル値取得
-    slope_aspect = ws["B4"].value # 斜面方位のセル値取得
-    inclination = ws["D4"].value # 傾斜度のセル値取得
-    latitude = ws["F4"].value # 緯度のセル値取得
-    longitude = ws["H4"].value # 経度のセル値取得
-    
-    tree_heights = []
-    branch_heights = []
-    dbhs = []
-    tree_count = 0
-    
-    # 毎木情報欄の出力
-    for row in range(start_row, end_row + 1):
-        tree_species_value = ws.cell(row=row, column=tree_information["樹種"]).value
-
-        # 樹種が空欄なら、その行は立木データとして扱わない
-        if is_blank(tree_species_value):
-            continue
-
-        tree_count = tree_count + 1
-
-        # 毎木情報欄の、各項目の数値を変換する
-        tree_height = to_float(ws.cell(row = row, column = tree_information["樹高(m)"]).value)
-        branch_height = to_float(ws.cell(row = row, column = tree_information["枝下高(m)"]).value)
-        dbh = to_float(ws.cell(row = row, column = tree_information["胸高直径(cm)"]).value)
-
-        if tree_height is not None:
-            tree_heights.append(tree_height)
-
-        if branch_height is not None:
-            branch_heights.append(branch_height)
-
-        if dbh is not None:
-            dbhs.append(dbh)
-
-    summary_row = {
-        "調査ID": plot_id,
-        "シート名": sheet_name,
-        "地域名": area_name,
-        "調査日時": format_survey_datetime(survey_date), # 調査日時を表示用の文字列に整える
-        "天気": weather,
-        "記帳者": writer,
-        "対象樹種": tree_species,
-        "面積(㎡)": area,
-        "斜面位置": slope_position,
-        "斜面方位": slope_aspect,
-        "傾斜度": format_decimal(inclination,1), # 小数点の桁数を定義
-        "緯度": format_decimal(latitude,6), # 小数点の桁数を定義
-        "経度": format_decimal(longitude,6), # 小数点の桁数を定義
-        "平均樹高(m)": format_decimal(calc_average(tree_heights),1), # 小数点の桁数を定義
-        "平均枝下高(m)": format_decimal(calc_average(branch_heights),1), # 小数点の桁数を定義
-        "平均胸高直径(cm)": format_decimal(calc_average(dbhs),1), # 小数点の桁数を定義
-        "立木本数": tree_count,
-        }
-
-    return summary_row
-    # →戻り値はdict型
-
-def write_gis_csv(gis_rows: list[dict[str, str | int]], output_path: str | Path) -> None:
-    # gis_rows =[]：基本情報、毎木情報それぞれの項目はstr型、値はstr型とint型がある
-    # format_decimal(calc_average()でfloat型→str型になっているため、float型ではない
-    # ファイルに値を書き込むだけであるため、戻り値はNoneとなる
-    """
-    QGIS結合用CSVを出力する関数
-    """
-    fieldnames = ["調査ID", "シート名", "地域名", "調査日時", "天気",
-        "記帳者", "対象樹種", "面積(㎡)", "斜面位置",
-        "斜面方位", "傾斜度", "緯度", "経度",
-        "平均樹高(m)", "平均枝下高(m)", "平均胸高直径(cm)", "立木本数",
-        ]
-    
-    # check_rules_fileをutf-8-sig形式で開くことで、日本語の文字化けを防ぐ
-    # openしたファイルは、closeする必要があるが、withを使うことでcloseできる
-    # newline = ""で、csv.DictReaderの方に改行を判断させる
-    with open(output_path, "w", encoding = "utf-8-sig", newline = "") as f:
-        # 第二引数fieldnamesに、辞書のキーのリストを指定する
-        # 書き込み先のcolumnを指定する必要があるためfieldnamesは省略不可
-        writer = csv.DictWriter(f, fieldnames = fieldnames)
-        # フィールド名を書き込む
-        writer.writeheader()
-        # dictにキーを渡して書き込む
-        writer.writerows(gis_rows)
-
 
 # ==============================================================================================
 # OCRによるPDF処理
 # ==============================================================================================
+
+def check_google_credentials() -> None:
+    """
+    Google認証ファイルの環境変数が設定されているか確認する関数
+    """
+    # 環境変数の値を取得する。.getを使うことで、環境変数が未設定の場合はNoneを返す
+    credentials_path = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
+    # Google認証ファイルのパスが未設定の場合には、ランタイムエラーを発生させて処理を中断する
+    if credentials_path is None:
+        raise RuntimeError(
+            "GOOGLE_APPLICATION_CREDENTIALS が設定されていません。"
+            "PowerShellでGoogle認証JSONのパスを設定してください。"
+        )
+    # Google認証ファイルのパスが有効なパスかを確認する
+    if not Path(credentials_path).exists():
+        raise FileNotFoundError(
+            f"Google認証ファイルが見つかりません: {credentials_path}"
+        )
 
 def ocr_pdf(pdf_bytes, zoom: float = 2.0): # zoom=3.0でも精度改善が見られず
     """
@@ -730,75 +657,6 @@ def ocr_pdf(pdf_bytes, zoom: float = 2.0): # zoom=3.0でも精度改善が見ら
     # ocr_pdf_endpointでは、関数の戻り値がreturn {"text": text}で1つである必要がある
     # joinは、要素の間にだけ区切りを入れる
     return "\n----- page break -----\n".join(page_texts) 
-
-
-# ==============================================================================================
-# LLM用：調査データをテキスト形式にまとめる
-# ==============================================================================================
-
-def extract_survey_text_for_llm(ws: Worksheet, sheet_name: str, tree_information: TreeInfoMap, 
-                                start_row: int, end_row: int) -> str:
-    # load_tree_inf_cell_mapping(tree_information): dict型
-    # load_tree_data_cell_mapping(start_row, end_row): int型
-    """
-    LLMに渡すための調査データをテキスト形式に変換する関数
-    追加エラー候補を抽出する
-    """
-    lines = []
-    lines.append(f"【シート名】{sheet_name}")
-    lines.append(f"調査ID: {ws['B2'].value}")
-    lines.append(f"地域名: {ws['D2'].value}")
-    lines.append(f"調査日時: {ws['F2'].value}")
-    lines.append(f"天気: {ws['H2'].value}")
-    lines.append(f"記帳者: {ws['B3'].value}")
-    lines.append(f"対象樹種: {ws['D3'].value}")
-    lines.append(f"面積(㎡): {ws['F3'].value}")
-    lines.append(f"斜面位置: {ws['H3'].value}")
-    lines.append(f"斜面方位: {ws['B4'].value}")
-    lines.append(f"傾斜度: {ws['D4'].value}")
-    lines.append(f"緯度: {ws['F4'].value}")
-    lines.append(f"経度: {ws['H4'].value}")
-    # 改行することで、Dify上で違いを認識しやすくする
-    lines.append("")
-    lines.append("【毎木調査データ】")
-
-    # 毎木情報欄から抽出する
-    for row in range(start_row, end_row + 1):
-        # dict型
-        row_values = {}
-        # キーと値両方(dict型)に対してforでループするために、itemsメソッドを使用する
-        for item_name, col in tree_information.items():
-            # キーごとに、値を書き込む
-            row_values[item_name] = ws.cell(row = row, column = col).value
-
-        # is_unused_tree_row()を使って空行を判定する
-        # 第2引数を指定しない場合、存在しないキーであればNoneが返ってくる
-        if is_unused_tree_row(
-            row_values.get("樹種"),
-            row_values.get("樹高(m)"),
-            row_values.get("枝下高(m)"),
-            row_values.get("胸高直径(cm)"),
-            row_values.get("異常区分"),
-            row_values.get("被害区分")
-            ):
-            continue
-            # →空の行をスキップする
-
-        # 各行を1行のテキストにまとめる
-        # row_valuesからキーk(毎木情報の項目)と値vを取り出し、
-        # vが空欄でなければキー = 値の文字列を作成する
-        # '間に挿入する文字列'.join([連結したい文字列のリスト])
-        # →連結したい文字列の間に間に挿入する文字列を入れる
-        row_text = f"行{row}: " + " / ".join(
-            f"{k}={v}" for k, v in row_values.items() if not is_blank(v)
-            )
-        lines.append(row_text)
-        # →"行7: 樹種=スギ / 樹高(m)=12.5 / 枝下高(m)=空欄  / 胸高直径(cm) = 30.0 / 異常区分=なし / 被害区分=なし"
-
-    return "\n".join(lines)
-    # → 行7: 樹種=スギ / 樹高(m)=12.5 / 枝下高(m)=空欄  / 胸高直径(cm) = 30.0 / 異常区分=なし / 被害区分=なし"
-    # → 行8: 樹種=スギ / 樹高(m)=15.1 / 枝下高(m)=9.8  / 胸高直径(cm) = 21.0 / 異常区分=なし / 被害区分=なし"    
-
 
 # ==============================================================================================
 # PDF/OCR → Excelフォーマット復元
@@ -887,7 +745,6 @@ def build_survey_workbook(plots: list, template_file: str | Path,
 # xlsxを返すときのMIMEタイプ
 XLSX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
-
 # ==============================================================================================
 # Google Cloud Vision API呼び出し
 # ==============================================================================================
@@ -926,278 +783,6 @@ def is_ocr_unreadable(value: str) -> bool:
 
     return str(value).strip() == "OCR_UNREADABLE"
 
-
-# ==============================================================================================
-# エラーあり
-# エラーログをUTF-8 BOM付きCSVで返す
-# DifyのMarkDownエクスポーターでは文字化けが解消できなかったため追加
-# ==============================================================================================
-
-@app.post("/export_error_log")
-async def export_error_log(
-    survey_file: UploadFile = File(...)):
-    """
-    エラーログをUTF-8 BOM付きCSVファイルとして返すエンドポイント
-    Excelで直接開いても文字化けしない
-    """
-    
-    # awaitを付けることで、非同期処理
-    survey_bytes = await survey_file.read()
-    wb = load_workbook(io.BytesIO(survey_bytes), data_only=True)
-
-    cell_mapping_file = MASTER_DIR / "forest_survey_cell_mapping.xlsx"
-    check_rules_file = MASTER_DIR / "check_rules_forest_survey.csv"
-
-    basic_information = load_basic_inf_cell_mapping(cell_mapping_file)
-    tree_information = dict(load_tree_inf_cell_mapping(cell_mapping_file))
-    start_row, end_row = load_tree_data_cell_mapping(cell_mapping_file)
-
-    check_rules = load_check_rules(check_rules_file)
-    basic_rules = get_basic_rules(check_rules)
-    tree_rules = get_tree_rules(check_rules)
-
-    all_errors = []
-
-    for sheet_name in wb.sheetnames:
-        ws = wb[sheet_name]
-        all_errors.extend(check_basic_info(ws, sheet_name, basic_information, basic_rules))
-        all_errors.extend(check_tree_rows(ws, sheet_name, tree_information, 
-                                          start_row, end_row, tree_rules))
-        
-    fieldnames = [
-        "sheet_name", "row_no", "rule_id", "category",
-        "item_name", "check_item", "severity",
-        "error_message", "fix_action",]
-
-    output = io.StringIO()
-    writer = csv.DictWriter(output, fieldnames=fieldnames)
-    writer.writeheader()
-    writer.writerows(all_errors)
-    
-    # BOM(Byte Order Mark)を付けることで、 UTF-8形式として認識する
-    encoded = output.getvalue().encode("utf-8-sig") 
-
-    return Response(
-        content=encoded,
-        media_type="text/csv",
-        headers={"Content-Disposition": "attachment; filename=error_log.csv"})
-
-
-# ==============================================================================================
-# 追加エラー候補追加
-# エラー判別コードに新たなルールを追加する
-# ==============================================================================================
-
-# LLMが検出した追加エラー候補は出力できるが、正式な検査ルールとして自動追加する部分は今後の課題とした。
-@app.post("/add_rules")
-async def add_rules(request: Request):
-    """
-    LLMが発見した新しいルールを check_rules_forest_survey.csv に追記する
-    リスト形式・JSON文字列形式どちらでも受け付ける
-    """
-
-    # bodyをそのまま受け取り、柔軟にパース(構造化処理)する
-    raw_body = await request.body()
-
-    try:
-        parsed = json.loads(raw_body)
-        # JSON文字列がさらにネストされている場合（"[...]" のような文字列）も対応
-        if isinstance(parsed, str):
-            parsed = json.loads(parsed)
-        if not isinstance(parsed, list):
-            return {"added_count": 0, "status": "invalid_format"}
-        new_rules = parsed
-    except Exception:
-        return {"added_count": 0, "status": "parse_error"}
-
-    # ルールが空の場合はそのまま返す
-    if not new_rules:
-        return {"added_count": 0, "status": "ok"}
-
-    check_rules_file = MASTER_DIR / "check_rules_forest_survey.csv"
-
-    # 既存のルールを読み込んで、既存のrule_idを取得する
-    existing_rules = load_check_rules(check_rules_file)
-    existing_ids = [r["rule_id"] for r in existing_rules]
-
-    # 追記用にファイルを開く
-    fieldnames = [
-        "rule_id", "category", "check_item",
-        "target_column", "condition", "severity",
-        "message", "fix_action", "note"]
-
-    added_count = 0
-    with open(check_rules_file, "a", newline="", encoding="utf-8-sig") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
-
-        for rule in new_rules:
-            # すでに同じrule_idがある場合はスキップ
-            if rule.get("rule_id") in existing_ids:
-                continue
-
-            # LLMが出力するフィールド名を正規フィールド名に変換する
-            normalized = {
-                "rule_id":       rule.get("rule_id", ""),
-                "category":      rule.get("category", ""),
-                "check_item":    rule.get("check_item", ""),
-                "target_column": rule.get("target_column") or rule.get("item_name", ""),
-                "condition":     rule.get("condition", ""),
-                "severity":      rule.get("severity", "warning"),
-                "message":       rule.get("message") or rule.get("error_message", ""),
-                "fix_action":    rule.get("fix_action", ""),
-                "note":          rule.get("note", ""),
-                }
-            
-            writer.writerow(normalized)
-            added_count += 1
-
-    return {"added_count": added_count, "status": "ok"}
-
-
-# ==============================================================================================
-# エラーなし(GIS用フォーマット出力)
-# DifyのMarkDownエクスポーターでは文字化けが解消できなかったため、UTF-8 BOM付きCSVで返す処理を追加
-# ==============================================================================================
-
-@app.get("/")
-def read_root():
-    return {"status": "ok"}
-
-# GIS用サマリーをUTF-8 BOM付きCSVで返す
-@app.post("/export_gis_csv")
-async def export_gis_csv(
-    survey_file: UploadFile = File(...)):
-    """
-    GIS結合用サマリーをUTF-8 BOM付きCSVファイルとして返すエンドポイント
-    Excelで直接開いても文字化けしない
-    エラーがある場合は空のCSVを返す
-    """
-
-     # awaitを付けることで、非同期処理
-    survey_bytes = await survey_file.read()
-    # メモリ上でバイナリデータをファイルのように扱う
-    # (ディスクに書き込まずに、メモリ上で「仮想的なファイル」として扱える)
-    wb = load_workbook(io.BytesIO(survey_bytes), data_only=True)
-
-    cell_mapping_file = MASTER_DIR / "forest_survey_cell_mapping.xlsx"
-    check_rules_file = MASTER_DIR / "check_rules_forest_survey.csv"
-
-    basic_information = load_basic_inf_cell_mapping(cell_mapping_file)
-    tree_information = dict(load_tree_inf_cell_mapping(cell_mapping_file))
-    start_row, end_row = load_tree_data_cell_mapping(cell_mapping_file)
-
-    check_rules = load_check_rules(check_rules_file)
-    basic_rules = get_basic_rules(check_rules)
-    tree_rules = get_tree_rules(check_rules)
-
-    all_errors = []
-
-    for sheet_name in wb.sheetnames:
-        ws = wb[sheet_name]
-        all_errors.extend(check_basic_info(ws, sheet_name, basic_information, basic_rules))
-        all_errors.extend(check_tree_rows(ws, sheet_name, tree_information, start_row, 
-                                          end_row, tree_rules))
-
-    fieldnames = ["調査ID", "シート名", "地域名", "調査日時", "天気",
-        "記帳者", "対象樹種", "面積(㎡)", "斜面位置", 
-        "斜面方位","傾斜度", "緯度", "経度",
-        "平均樹高(m)", "平均枝下高(m)", "平均胸高直径(cm)", "立木本数",]
-
-    gis_rows = []
-    
-    if not all_errors:
-        for sheet_name in wb.sheetnames:
-            ws = wb[sheet_name]
-            gis_rows.append(
-                create_gis_summary_row(ws, sheet_name, tree_information, start_row, end_row))
-
-    output = io.StringIO()
-    writer = csv.DictWriter(output, fieldnames=fieldnames)
-    writer.writeheader()
-    writer.writerows(gis_rows)
-
-    encoded = output.getvalue().encode("utf-8-sig")
-
-    return Response(
-        content=encoded,
-        media_type="text/csv",
-        headers={"Content-Disposition": "attachment; filename=gis_plot_summary.csv"})
-
-
-# ==============================================================================================
-# メインの処理
-# ==============================================================================================
-
-@app.post("/analyze")
-async def analyze(
-    # 1．森林調査票をアップロードする
-    survey_file: UploadFile = File(...)): 
-    # ネットワークでアップロードされたファイルは、バイト列になる
-    # ファイルの読み込みでは、非同期処理が必要
-    # (awaitは、データが送付されるのを待ってから次の処理に進んでくださいという指示)
-    survey_bytes = await survey_file.read() 
-    # バイト列をopenpyxlで読み込む(load_workbookuだけでは、
-    # バイト列をそのまま渡すことになるためio.BytesIOを使用する)
-    wb = load_workbook(io.BytesIO(survey_bytes), data_only = True)
-
-    # 2. masterフォルダから固定ファイルを読み込む
-    cell_mapping_file = MASTER_DIR / "forest_survey_cell_mapping.xlsx"
-    check_rules_file = MASTER_DIR / "check_rules_forest_survey.csv"
-
-    # 3. セル対応表を読み込む
-    basic_information = load_basic_inf_cell_mapping(cell_mapping_file)
-    tree_information = dict(load_tree_inf_cell_mapping(cell_mapping_file))
-    start_row, end_row = load_tree_data_cell_mapping(cell_mapping_file)
-
-    # 4. ルールを読み込む
-    check_rules = load_check_rules(check_rules_file)
-    basic_rules = get_basic_rules(check_rules)
-    tree_rules = get_tree_rules(check_rules)
-
-    # 5. シートごとにエラーチェックを実行する
-    target_sheets = wb.sheetnames
-
-    all_errors = []
-
-    for sheet_name in target_sheets:
-        ws = wb[sheet_name]
-
-        basic_errors = check_basic_info(ws, sheet_name, basic_information, 
-                                        basic_rules,)
-
-        tree_errors = check_tree_rows(ws, sheet_name, tree_information, 
-                                      start_row, end_row, tree_rules)
-
-        all_errors.extend(basic_errors)
-        all_errors.extend(tree_errors)
-    
-    # 6. エラーがない場合のみGISサマリーを作成する
-    gis_rows = []
-
-    if not all_errors:
-        for sheet_name in target_sheets:
-            ws = wb[sheet_name]
-            summary_row = create_gis_summary_row(ws, sheet_name, 
-                                                 tree_information, start_row, end_row)
-            gis_rows.append(summary_row)
-
-    # 7. LLM用のテキストデータを生成する(追加エラー候補抽出用)
-    survey_texts = []
-    for sheet_name in target_sheets:
-        ws = wb[sheet_name]
-        text = extract_survey_text_for_llm(ws, sheet_name, tree_information, start_row, end_row)
-        survey_texts.append(text)
-
-    survey_text_for_llm = "\n\n".join(survey_texts)
-
-    # 8. 結果を返す
-    return {
-        "has_error": len(all_errors) > 0,
-        "error_count": len(all_errors),
-        "error_log": all_errors,
-        "gis_summary": gis_rows,
-        "survey_text_for_llm": survey_text_for_llm # Dify LLMに渡す用
-        }  
 
 
 # ==============================================================================================
@@ -1359,3 +944,441 @@ async def build_xlsx_from_json(request: Request):
         media_type=XLSX_MEDIA_TYPE, # Excelの MIMEタイプ
         headers={"Content-Disposition": "attachment; filename=survey_from_pdf.xlsx"},
         )
+
+
+# ==============================================================================================
+# LLM用：調査データをテキスト形式にまとめる
+# ==============================================================================================
+
+def extract_survey_text_for_llm(ws: Worksheet, sheet_name: str, tree_information: TreeInfoMap, 
+                                start_row: int, end_row: int) -> str:
+    # load_tree_inf_cell_mapping(tree_information): dict型
+    # load_tree_data_cell_mapping(start_row, end_row): int型
+    """
+    LLMに渡すための調査データをテキスト形式に変換する関数
+    追加エラー候補を抽出する
+    """
+    lines = []
+    lines.append(f"【シート名】{sheet_name}")
+    lines.append(f"調査ID: {ws['B2'].value}")
+    lines.append(f"地域名: {ws['D2'].value}")
+    lines.append(f"調査日時: {ws['F2'].value}")
+    lines.append(f"天気: {ws['H2'].value}")
+    lines.append(f"記帳者: {ws['B3'].value}")
+    lines.append(f"対象樹種: {ws['D3'].value}")
+    lines.append(f"面積(㎡): {ws['F3'].value}")
+    lines.append(f"斜面位置: {ws['H3'].value}")
+    lines.append(f"斜面方位: {ws['B4'].value}")
+    lines.append(f"傾斜度: {ws['D4'].value}")
+    lines.append(f"緯度: {ws['F4'].value}")
+    lines.append(f"経度: {ws['H4'].value}")
+    # 改行することで、Dify上で違いを認識しやすくする
+    lines.append("")
+    lines.append("【毎木調査データ】")
+
+    # 毎木情報欄から抽出する
+    for row in range(start_row, end_row + 1):
+        # dict型
+        row_values = {}
+        # キーと値両方(dict型)に対してforでループするために、itemsメソッドを使用する
+        for item_name, col in tree_information.items():
+            # キーごとに、値を書き込む
+            row_values[item_name] = ws.cell(row = row, column = col).value
+
+        # is_unused_tree_row()を使って空行を判定する
+        # 第2引数を指定しない場合、存在しないキーであればNoneが返ってくる
+        if is_unused_tree_row(
+            row_values.get("樹種"),
+            row_values.get("樹高(m)"),
+            row_values.get("枝下高(m)"),
+            row_values.get("胸高直径(cm)"),
+            row_values.get("異常区分"),
+            row_values.get("被害区分")
+            ):
+            continue
+            # →空の行をスキップする
+
+        # 各行を1行のテキストにまとめる
+        # row_valuesからキーk(毎木情報の項目)と値vを取り出し、
+        # vが空欄でなければキー = 値の文字列を作成する
+        # '間に挿入する文字列'.join([連結したい文字列のリスト])
+        # →連結したい文字列の間に間に挿入する文字列を入れる
+        row_text = f"行{row}: " + " / ".join(
+            f"{k}={v}" for k, v in row_values.items() if not is_blank(v)
+            )
+        lines.append(row_text)
+        # →"行7: 樹種=スギ / 樹高(m)=12.5 / 枝下高(m)=空欄  / 胸高直径(cm) = 30.0 / 異常区分=なし / 被害区分=なし"
+
+    return "\n".join(lines)
+    # → 行7: 樹種=スギ / 樹高(m)=12.5 / 枝下高(m)=空欄  / 胸高直径(cm) = 30.0 / 異常区分=なし / 被害区分=なし"
+    # → 行8: 樹種=スギ / 樹高(m)=15.1 / 枝下高(m)=9.8  / 胸高直径(cm) = 21.0 / 異常区分=なし / 被害区分=なし"
+
+# ==============================================================================================
+# 追加エラー候補追加
+# エラールールに新たなルールを追加する
+# ==============================================================================================
+
+# LLMが検出した追加エラー候補は出力できるが、正式な検査ルールとして自動追加する部分は今後の課題とした。
+@app.post("/add_rules")
+async def add_rules(request: Request):
+    """
+    LLMが発見した新しいルールを check_rules_forest_survey.csv に追記する
+    リスト形式・JSON文字列形式どちらでも受け付ける
+    """
+
+    # bodyをそのまま受け取り、柔軟にパース(構造化処理)する
+    raw_body = await request.body()
+
+    try:
+        parsed = json.loads(raw_body)
+        # JSON文字列がさらにネストされている場合（"[...]" のような文字列）も対応
+        if isinstance(parsed, str):
+            parsed = json.loads(parsed)
+        if not isinstance(parsed, list):
+            return {"added_count": 0, "status": "invalid_format"}
+        new_rules = parsed
+    except Exception:
+        return {"added_count": 0, "status": "parse_error"}
+
+    # ルールが空の場合はそのまま返す
+    if not new_rules:
+        return {"added_count": 0, "status": "ok"}
+
+    check_rules_file = MASTER_DIR / "check_rules_forest_survey.csv"
+
+    # 既存のルールを読み込んで、既存のrule_idを取得する
+    existing_rules = load_check_rules(check_rules_file)
+    existing_ids = [r["rule_id"] for r in existing_rules]
+
+    # 追記用にファイルを開く
+    fieldnames = [
+        "rule_id", "category", "check_item",
+        "target_column", "condition", "severity",
+        "message", "fix_action", "note"]
+
+    added_count = 0
+    with open(check_rules_file, "a", newline="", encoding="utf-8-sig") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
+
+        for rule in new_rules:
+            # すでに同じrule_idがある場合はスキップ
+            if rule.get("rule_id") in existing_ids:
+                continue
+
+            # LLMが出力するフィールド名を正規フィールド名に変換する
+            normalized = {
+                "rule_id":       rule.get("rule_id", ""),
+                "category":      rule.get("category", ""),
+                "check_item":    rule.get("check_item", ""),
+                "target_column": rule.get("target_column") or rule.get("item_name", ""),
+                "condition":     rule.get("condition", ""),
+                "severity":      rule.get("severity", "warning"),
+                "message":       rule.get("message") or rule.get("error_message", ""),
+                "fix_action":    rule.get("fix_action", ""),
+                "note":          rule.get("note", ""),
+                }
+            
+            writer.writerow(normalized)
+            added_count += 1
+
+    return {"added_count": added_count, "status": "ok"}
+
+# ==============================================================================================
+# エラーあり
+# エラーログをUTF-8 BOM付きCSVで返す
+# DifyのMarkDownエクスポーターでは文字化けが解消できなかったため追加
+# ==============================================================================================
+
+@app.post("/export_error_log")
+async def export_error_log(
+    survey_file: UploadFile = File(...)):
+    """
+    エラーログをUTF-8 BOM付きCSVファイルとして返すエンドポイント
+    Excelで直接開いても文字化けしない
+    """
+    
+    # awaitを付けることで、非同期処理
+    survey_bytes = await survey_file.read()
+    wb = load_workbook(io.BytesIO(survey_bytes), data_only=True)
+
+    cell_mapping_file = MASTER_DIR / "forest_survey_cell_mapping.xlsx"
+    check_rules_file = MASTER_DIR / "check_rules_forest_survey.csv"
+
+    basic_information = load_basic_inf_cell_mapping(cell_mapping_file)
+    tree_information = dict(load_tree_inf_cell_mapping(cell_mapping_file))
+    start_row, end_row = load_tree_data_cell_mapping(cell_mapping_file)
+
+    check_rules = load_check_rules(check_rules_file)
+    basic_rules = get_basic_rules(check_rules)
+    tree_rules = get_tree_rules(check_rules)
+
+    all_errors = []
+
+    for sheet_name in wb.sheetnames:
+        ws = wb[sheet_name]
+        all_errors.extend(check_basic_info(ws, sheet_name, basic_information, basic_rules))
+        all_errors.extend(check_tree_rows(ws, sheet_name, tree_information, 
+                                          start_row, end_row, tree_rules))
+        
+    fieldnames = [
+        "sheet_name", "row_no", "rule_id", "category",
+        "item_name", "check_item", "severity",
+        "error_message", "fix_action",]
+
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=fieldnames)
+    writer.writeheader()
+    writer.writerows(all_errors)
+    
+    # BOM(Byte Order Mark)を付けることで、 UTF-8形式として認識する
+    encoded = output.getvalue().encode("utf-8-sig") 
+
+    return Response(
+        content=encoded,
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=error_log.csv"})
+
+# ==============================================================================================
+# GIS結合用csv出力
+# ==============================================================================================
+
+def create_gis_summary_row(ws: Worksheet, sheet_name: str, tree_information: TreeInfoMap, 
+                           start_row: int, end_row: int) -> dict:
+    # load_tree_inf_cell_mapping(tree_information)
+    # → dict{"番号": "A7:A76", "樹種", "B7:B76"}
+    # load_tree_data_cell_mapping(start_row, end_row)
+    # →いずれもint型
+    """
+    GIS結合用CSVに出力する1地点分の集計行を作成する関数
+    """
+    # 基本情報欄の出力
+    plot_id = ws["B2"].value # 調査IDのセル値取得
+    area_name = ws["D2"].value # 地域名のセル値取得
+    survey_date = ws["F2"].value # 調査日時のセル値取得
+    weather = ws["H2"].value # 天気のセル値取得
+    writer = ws["B3"].value # 記帳者のセル値取得
+    tree_species = ws["D3"].value # 対象樹種のセル値取得
+    area = ws["F3"].value # 面積(㎡)ののセル値取得
+    slope_position = ws["H3"].value # 斜面位置のセル値取得
+    slope_aspect = ws["B4"].value # 斜面方位のセル値取得
+    inclination = ws["D4"].value # 傾斜度のセル値取得
+    latitude = ws["F4"].value # 緯度のセル値取得
+    longitude = ws["H4"].value # 経度のセル値取得
+    
+    tree_heights = []
+    branch_heights = []
+    dbhs = []
+    tree_count = 0
+    
+    # 毎木情報欄の出力
+    for row in range(start_row, end_row + 1):
+        tree_species_value = ws.cell(row=row, column=tree_information["樹種"]).value
+
+        # 樹種が空欄なら、その行は立木データとして扱わない
+        if is_blank(tree_species_value):
+            continue
+
+        tree_count = tree_count + 1
+
+        # 毎木情報欄の、各項目の数値を変換する
+        tree_height = to_float(ws.cell(row = row, column = tree_information["樹高(m)"]).value)
+        branch_height = to_float(ws.cell(row = row, column = tree_information["枝下高(m)"]).value)
+        dbh = to_float(ws.cell(row = row, column = tree_information["胸高直径(cm)"]).value)
+
+        if tree_height is not None:
+            tree_heights.append(tree_height)
+
+        if branch_height is not None:
+            branch_heights.append(branch_height)
+
+        if dbh is not None:
+            dbhs.append(dbh)
+
+    summary_row = {
+        "調査ID": plot_id,
+        "シート名": sheet_name,
+        "地域名": area_name,
+        "調査日時": format_survey_datetime(survey_date), # 調査日時を表示用の文字列に整える
+        "天気": weather,
+        "記帳者": writer,
+        "対象樹種": tree_species,
+        "面積(㎡)": area,
+        "斜面位置": slope_position,
+        "斜面方位": slope_aspect,
+        "傾斜度": format_decimal(inclination,1), # 小数点の桁数を定義
+        "緯度": format_decimal(latitude,6), # 小数点の桁数を定義
+        "経度": format_decimal(longitude,6), # 小数点の桁数を定義
+        "平均樹高(m)": format_decimal(calc_average(tree_heights),1), # 小数点の桁数を定義
+        "平均枝下高(m)": format_decimal(calc_average(branch_heights),1), # 小数点の桁数を定義
+        "平均胸高直径(cm)": format_decimal(calc_average(dbhs),1), # 小数点の桁数を定義
+        "立木本数": tree_count,
+        }
+
+    return summary_row
+    # →戻り値はdict型
+
+def write_gis_csv(gis_rows: list[dict[str, str | int]], output_path: str | Path) -> None:
+    # gis_rows =[]：基本情報、毎木情報それぞれの項目はstr型、値はstr型とint型がある
+    # format_decimal(calc_average()でfloat型→str型になっているため、float型ではない
+    # ファイルに値を書き込むだけであるため、戻り値はNoneとなる
+    """
+    QGIS結合用CSVを出力する関数
+    """
+    fieldnames = ["調査ID", "シート名", "地域名", "調査日時", "天気",
+        "記帳者", "対象樹種", "面積(㎡)", "斜面位置",
+        "斜面方位", "傾斜度", "緯度", "経度",
+        "平均樹高(m)", "平均枝下高(m)", "平均胸高直径(cm)", "立木本数",
+        ]
+    
+    # check_rules_fileをutf-8-sig形式で開くことで、日本語の文字化けを防ぐ
+    # openしたファイルは、closeする必要があるが、withを使うことでcloseできる
+    # newline = ""で、csv.DictReaderの方に改行を判断させる
+    with open(output_path, "w", encoding = "utf-8-sig", newline = "") as f:
+        # 第二引数fieldnamesに、辞書のキーのリストを指定する
+        # 書き込み先のcolumnを指定する必要があるためfieldnamesは省略不可
+        writer = csv.DictWriter(f, fieldnames = fieldnames)
+        # フィールド名を書き込む
+        writer.writeheader()
+        # dictにキーを渡して書き込む
+        writer.writerows(gis_rows)
+
+
+# ==============================================================================================
+# エラーなし(GIS用フォーマット出力)
+# GIS用サマリーをUTF-8 BOM付きCSVで返す
+# DifyのMarkDownエクスポーターでは文字化けが解消できなかったため、UTF-8 BOM付きCSVで返す処理を追加
+# ==============================================================================================
+
+@app.post("/export_gis_csv")
+async def export_gis_csv(
+    survey_file: UploadFile = File(...)):
+    """
+    GIS結合用サマリーをUTF-8 BOM付きCSVファイルとして返すエンドポイント
+    Excelで直接開いても文字化けしない
+    エラーがある場合は空のCSVを返す
+    """
+     # awaitを付けることで、非同期処理
+    survey_bytes = await survey_file.read()
+    # メモリ上でバイナリデータをファイルのように扱う
+    # (ディスクに書き込まずに、メモリ上で「仮想的なファイル」として扱える)
+    wb = load_workbook(io.BytesIO(survey_bytes), data_only=True)
+
+    cell_mapping_file = MASTER_DIR / "forest_survey_cell_mapping.xlsx"
+    check_rules_file = MASTER_DIR / "check_rules_forest_survey.csv"
+
+    basic_information = load_basic_inf_cell_mapping(cell_mapping_file)
+    tree_information = dict(load_tree_inf_cell_mapping(cell_mapping_file))
+    start_row, end_row = load_tree_data_cell_mapping(cell_mapping_file)
+
+    check_rules = load_check_rules(check_rules_file)
+    basic_rules = get_basic_rules(check_rules)
+    tree_rules = get_tree_rules(check_rules)
+
+    all_errors = []
+
+    for sheet_name in wb.sheetnames:
+        ws = wb[sheet_name]
+        all_errors.extend(check_basic_info(ws, sheet_name, basic_information, basic_rules))
+        all_errors.extend(check_tree_rows(ws, sheet_name, tree_information, start_row, 
+                                          end_row, tree_rules))
+
+    fieldnames = ["調査ID", "シート名", "地域名", "調査日時", "天気",
+        "記帳者", "対象樹種", "面積(㎡)", "斜面位置", 
+        "斜面方位","傾斜度", "緯度", "経度",
+        "平均樹高(m)", "平均枝下高(m)", "平均胸高直径(cm)", "立木本数",]
+
+    gis_rows = []
+    
+    if not all_errors:
+        for sheet_name in wb.sheetnames:
+            ws = wb[sheet_name]
+            gis_rows.append(
+                create_gis_summary_row(ws, sheet_name, tree_information, start_row, end_row))
+
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=fieldnames)
+    writer.writeheader()
+    writer.writerows(gis_rows)
+
+    encoded = output.getvalue().encode("utf-8-sig")
+
+    return Response(
+        content=encoded,
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=gis_plot_summary.csv"})
+
+
+# ==============================================================================================
+# メインの処理
+# ==============================================================================================
+
+@app.post("/analyze")
+async def analyze(
+    # 1．森林調査票をアップロードする
+    survey_file: UploadFile = File(...)): 
+    # ネットワークでアップロードされたファイルは、バイト列になる
+    # ファイルの読み込みでは、非同期処理が必要
+    # (awaitは、データが送付されるのを待ってから次の処理に進んでくださいという指示)
+    survey_bytes = await survey_file.read() 
+    # バイト列をopenpyxlで読み込む(load_workbookuだけでは、
+    # バイト列をそのまま渡すことになるためio.BytesIOを使用する)
+    wb = load_workbook(io.BytesIO(survey_bytes), data_only = True)
+
+    # 2. masterフォルダから固定ファイルを読み込む
+    cell_mapping_file = MASTER_DIR / "forest_survey_cell_mapping.xlsx"
+    check_rules_file = MASTER_DIR / "check_rules_forest_survey.csv"
+
+    # 3. セル対応表を読み込む
+    basic_information = load_basic_inf_cell_mapping(cell_mapping_file)
+    tree_information = dict(load_tree_inf_cell_mapping(cell_mapping_file))
+    start_row, end_row = load_tree_data_cell_mapping(cell_mapping_file)
+
+    # 4. ルールを読み込む
+    check_rules = load_check_rules(check_rules_file)
+    basic_rules = get_basic_rules(check_rules)
+    tree_rules = get_tree_rules(check_rules)
+
+    # 5. シートごとにエラーチェックを実行する
+    target_sheets = wb.sheetnames
+
+    all_errors = []
+
+    for sheet_name in target_sheets:
+        ws = wb[sheet_name]
+
+        basic_errors = check_basic_info(ws, sheet_name, basic_information, 
+                                        basic_rules,)
+
+        tree_errors = check_tree_rows(ws, sheet_name, tree_information, 
+                                      start_row, end_row, tree_rules)
+
+        all_errors.extend(basic_errors)
+        all_errors.extend(tree_errors)
+    
+    # 6. エラーがない場合のみGISサマリーを作成する
+    gis_rows = []
+
+    if not all_errors:
+        for sheet_name in target_sheets:
+            ws = wb[sheet_name]
+            summary_row = create_gis_summary_row(ws, sheet_name, 
+                                                 tree_information, start_row, end_row)
+            gis_rows.append(summary_row)
+
+    # 7. LLM用のテキストデータを生成する(追加エラー候補抽出用)
+    survey_texts = []
+    for sheet_name in target_sheets:
+        ws = wb[sheet_name]
+        text = extract_survey_text_for_llm(ws, sheet_name, tree_information, start_row, end_row)
+        survey_texts.append(text)
+
+    survey_text_for_llm = "\n\n".join(survey_texts)
+
+    # 8. 結果を返す
+    return {
+        "has_error": len(all_errors) > 0,
+        "error_count": len(all_errors),
+        "error_log": all_errors,
+        "gis_summary": gis_rows,
+        "survey_text_for_llm": survey_text_for_llm # Dify LLMに渡す用
+        }  
