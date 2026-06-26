@@ -36,9 +36,15 @@ app = FastAPI()
 def read_root():
     return {"status": "ok"}
 
-# masterフォルダのパスを定義する
-# 環境変数 MASTER_DIR があればそれを使い、なければ従来の ./master を使う
-DEFAULT_MASTER_DIR = Path(__file__).parent / "master"
+# main.py がある api フォルダ
+API_DIR = Path(__file__).resolve().parent
+
+# プロジェクト直下 forest_survey_check_tool
+BASE_DIR = API_DIR.parent
+
+# master フォルダ
+# 環境変数 MASTER_DIR があればそれを使い、なければプロジェクト直下の master を使う
+DEFAULT_MASTER_DIR = BASE_DIR / "master"
 MASTER_DIR = Path(os.environ.get("MASTER_DIR", DEFAULT_MASTER_DIR))
 
 # ==============================================================================================
