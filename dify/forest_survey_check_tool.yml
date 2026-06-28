@@ -1,0 +1,1714 @@
+app:
+  description: '森林調査データ入力・検査効率化のために、入力データのエラーの自動抽出、GISデータへの自動変換を行うためのアプリである。
+
+
+    ・入力ファイルは、xlsx・PDF形式に対応
+
+    ・FastAPI実施には、Renderを使用
+
+    ・入力されたファイルに対して、既存のエラーチェックファイルにより検査、エラー抽出実施
+
+    ・LLMを用いて、既存のエラールールにない新規のエラーの可能性があるものを抽出する
+
+    ・エラーや追加エラー候補は、Slack投稿により通知
+
+    ・エラーはlogをcsv形式で出力
+
+    ・エラーがないときのみ、csv形式のGISデータを出力'
+  icon: 🤖
+  icon_background: '#FFEAD5'
+  icon_type: emoji
+  mode: workflow
+  name: 森林調査データ入力・検査効率化ツール
+  use_icon_as_answer_icon: false
+dependencies:
+- current_identifier: null
+  type: marketplace
+  value:
+    marketplace_plugin_unique_identifier: langgenius/openai:0.4.2@21195ee1321849e0a7d4b3f6b2fd8c2be23ea6c7182e1b444ecc4c1711b52468
+    version: null
+kind: app
+version: 0.6.0
+workflow:
+  conversation_variables: []
+  environment_variables:
+  - description: FastAPIのURL
+    id: 5d7981aa-3087-46d0-99a9-2e93a2ca7d7e
+    name: Render_API_BASE_URL
+    selector:
+    - env
+    - Render_API_BASE_URL
+    value: https://your-render-app.onrender.com
+    value_type: string
+  - description: slackのIncoming WebhookのURLです。
+    id: fa27846d-f18b-4039-87cd-1175ce649ec7
+    name: slack_webhook_url
+    selector:
+    - env
+    - slack_webhook_url
+    value: ''
+    value_type: secret
+  features:
+    file_upload:
+      allowed_file_extensions:
+      - .JPG
+      - .JPEG
+      - .PNG
+      - .GIF
+      - .WEBP
+      - .SVG
+      allowed_file_types:
+      - image
+      allowed_file_upload_methods:
+      - local_file
+      - remote_url
+      enabled: false
+      fileUploadConfig:
+        attachment_image_file_size_limit: 2
+        audio_file_size_limit: 50
+        batch_count_limit: 5
+        file_size_limit: 15
+        file_upload_limit: 50
+        image_file_batch_limit: 10
+        image_file_size_limit: 10
+        single_chunk_attachment_limit: 10
+        video_file_size_limit: 100
+        workflow_file_upload_limit: 10
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+      number_limits: 3
+    opening_statement: ''
+    retriever_resource:
+      enabled: true
+    sensitive_word_avoidance:
+      enabled: false
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: llm
+        targetType: code
+      id: 1780442563959-source-1780442733681-target
+      selected: false
+      source: '1780442563959'
+      sourceHandle: source
+      target: '1780442733681'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: llm
+        targetType: http-request
+      id: 1780411223891-source-1780457989767-target
+      selected: false
+      source: '1780411223891'
+      sourceHandle: source
+      target: '1780457989767'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: http-request
+        targetType: end
+      id: 1780489017890-source-1780372585058-target
+      selected: false
+      source: '1780489017890'
+      sourceHandle: source
+      target: '1780372585058'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: if-else
+        targetType: http-request
+      id: 1780356676554-false-1780489102239-target
+      selected: false
+      source: '1780356676554'
+      sourceHandle: 'false'
+      target: '1780489102239'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: http-request
+        targetType: end
+      id: 1780457989767-source-1780724775434-target
+      selected: false
+      source: '1780457989767'
+      sourceHandle: source
+      target: '1780724775434'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: start
+        targetType: if-else
+      id: 1780096256163-source-1780725444570-target
+      selected: false
+      source: '1780096256163'
+      sourceHandle: source
+      target: '1780725444570'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: if-else
+        targetType: http-request
+      id: 1780725444570-false-1780734950724-target
+      selected: false
+      source: '1780725444570'
+      sourceHandle: 'false'
+      target: '1780734950724'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: http-request
+        targetType: code
+      id: 1780734950724-source-1780735730593-target
+      selected: false
+      source: '1780734950724'
+      sourceHandle: source
+      target: '1780735730593'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: code
+        targetType: llm
+      id: 1780735730593-source-1780736501150-target
+      selected: false
+      source: '1780735730593'
+      sourceHandle: source
+      target: '1780736501150'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: llm
+        targetType: code
+      id: 1780736501150-source-1780746211984-target
+      selected: false
+      source: '1780736501150'
+      sourceHandle: source
+      target: '1780746211984'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: code
+        targetType: http-request
+      id: 1780746211984-source-1780746305685-target
+      selected: false
+      source: '1780746211984'
+      sourceHandle: source
+      target: '1780746305685'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: code
+        targetType: llm
+      id: 1780371392037-source-1780442563959-target
+      selected: false
+      source: '1780371392037'
+      sourceHandle: source
+      target: '1780442563959'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: code
+        targetType: if-else
+      id: 1780442733681-source-1780356676554-target
+      selected: false
+      source: '1780442733681'
+      sourceHandle: source
+      target: '1780356676554'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: if-else
+        targetType: llm
+      id: 1780356676554-true-1780411223891-target
+      selected: false
+      source: '1780356676554'
+      sourceHandle: 'true'
+      target: '1780411223891'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: if-else
+        targetType: http-request
+      id: 1780356676554-true-1780442810188-target
+      selected: false
+      source: '1780356676554'
+      sourceHandle: 'true'
+      target: '1780442810188'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: http-request
+        targetType: variable-aggregator
+      id: 1780746305685-source-1780792434830-target
+      selected: false
+      source: '1780746305685'
+      sourceHandle: source
+      target: '1780792434830'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: variable-aggregator
+        targetType: http-request
+      id: 1780792434830-source-1780355579484-target
+      selected: false
+      source: '1780792434830'
+      sourceHandle: source
+      target: '1780355579484'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: if-else
+        targetType: variable-aggregator
+      id: 1780725444570-true-1780792434830-target
+      selected: false
+      source: '1780725444570'
+      sourceHandle: 'true'
+      target: '1780792434830'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: http-request
+        targetType: if-else
+      id: 1780442810188-source-17808025803790-target
+      selected: false
+      source: '1780442810188'
+      sourceHandle: source
+      target: '17808025803790'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: if-else
+        targetType: http-request
+      id: 17808025803790-true-1780489017890-target
+      selected: false
+      source: '17808025803790'
+      sourceHandle: 'true'
+      target: '1780489017890'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: http-request
+        targetType: end
+      id: 17808026966440-source-17808027726860-target
+      selected: false
+      source: '17808026966440'
+      sourceHandle: source
+      target: '17808027726860'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: code
+        targetType: http-request
+      id: 1780746211984-source-1780805142194-target
+      selected: false
+      source: '1780746211984'
+      sourceHandle: source
+      target: '1780805142194'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: http-request
+        targetType: end
+      id: 1780805142194-source-1780805428741-target
+      selected: false
+      source: '1780805142194'
+      sourceHandle: source
+      target: '1780805428741'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: http-request
+        targetType: code
+      id: 1780355579484-source-1780371392037-target
+      selected: false
+      source: '1780355579484'
+      sourceHandle: source
+      target: '1780371392037'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: if-else
+        targetType: http-request
+      id: 17808025803790-false-17808026966440-target
+      selected: false
+      source: '17808025803790'
+      sourceHandle: 'false'
+      target: '17808026966440'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: http-request
+        targetType: end
+      id: 17807248650960-source-1780391752679-target
+      selected: false
+      source: '17807248650960'
+      sourceHandle: source
+      target: '1780391752679'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: http-request
+        targetType: if-else
+      id: 1780489102239-source-1782498818116-target
+      selected: false
+      source: '1780489102239'
+      sourceHandle: source
+      target: '1782498818116'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: if-else
+        targetType: http-request
+      id: 1782498818116-true-1780442810188-target
+      selected: false
+      source: '1782498818116'
+      sourceHandle: 'true'
+      target: '1780442810188'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: http-request
+        targetType: http-request
+      id: 1780442810188-source-1780457989767-target
+      selected: false
+      source: '1780442810188'
+      sourceHandle: source
+      target: '1780457989767'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: if-else
+        targetType: code
+      id: 1782498818116-false-1782500433611-target
+      selected: false
+      source: '1782498818116'
+      sourceHandle: 'false'
+      target: '1782500433611'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: code
+        targetType: http-request
+      id: 1782500433611-source-17807248650960-target
+      selected: false
+      source: '1782500433611'
+      sourceHandle: source
+      target: '17807248650960'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: if-else
+        targetType: llm
+      id: 1782498818116-true-1780411223891-target
+      source: '1782498818116'
+      sourceHandle: 'true'
+      target: '1780411223891'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    nodes:
+    - data:
+        desc: 森林調査結果のxlsx or PDFのファイルをアップロードする。
+        selected: false
+        title: 開始(現地調査結果入力)
+        type: start
+        variables:
+        - allowed_file_extensions: []
+          allowed_file_types:
+          - image
+          - document
+          allowed_file_upload_methods:
+          - local_file
+          - remote_url
+          default: ''
+          hide: false
+          hint: ''
+          label: 現地調査結果
+          max_length: 5
+          options: []
+          placeholder: ''
+          required: true
+          type: file-list
+          variable: survey_file
+      height: 153
+      id: '1780096256163'
+      position:
+        x: -3258.0039050427085
+        y: -509.6622569158508
+      positionAbsolute:
+        x: -3258.0039050427085
+        y: -509.6622569158508
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        authorization:
+          config: null
+          type: no-auth
+        body:
+          data:
+          - file:
+            - '1780792434830'
+            - output
+            id: key-value-333
+            key: survey_file
+            type: file
+            value: '{{#1780096256163.survey_file#}}'
+          type: form-data
+        desc: 'RenderによるFastAPI呼び出しを行い、main.pyの「analyze」処理を実行する。
+
+          具体的には、既存ルールのファイルを元に調査結果をチェックし入力ミスや転記ミス等のエラーがないか検査する。'
+        headers: ''
+        method: post
+        params: ''
+        retry_config:
+          max_retries: 3
+          retry_enabled: true
+          retry_interval: 100
+        selected: false
+        ssl_verify: true
+        timeout:
+          connect: 10
+          max_connect_timeout: 0
+          max_read_timeout: 0
+          max_write_timeout: 0
+          read: 60
+          write: 60
+        title: HTTPリクエスト(analyze実行)
+        type: http-request
+        url: '{{#env.Render_API_BASE_URL#}}/analyze'
+        variables: []
+      height: 232
+      id: '1780355579484'
+      position:
+        x: 20.250829684741234
+        y: -763.5487009320727
+      positionAbsolute:
+        x: 20.250829684741234
+        y: -763.5487009320727
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        cases:
+        - case_id: 'true'
+          conditions:
+          - comparison_operator: is
+            id: ae582c2a-c898-4c1d-887c-d6e532c2a4ce
+            value: true
+            varType: boolean
+            variable_selector:
+            - '1780371392037'
+            - has_error
+          id: 'true'
+          logical_operator: and
+        desc: has_errorの内容に応じて、error_log出力処理もしくはGIS用ファイル出力処理を行う。
+        selected: false
+        title: 条件分岐(error・gis出力)
+        type: if-else
+      height: 192
+      id: '1780356676554'
+      position:
+        x: 1452.6361576200447
+        y: -744.3656258984058
+      positionAbsolute:
+        x: 1452.6361576200447
+        y: -744.3656258984058
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        code: "import json\n\ndef main(body: str) -> dict:\n    data = json.loads(body)\n\
+          \    has_error = data[\"has_error\"]\n    survey_text_for_llm = data.get(\"\
+          survey_text_for_llm\", \"\")\n\n    # error_log を Markdown 表形式に変換\n    error_log_md\
+          \ = \"\"\n    if has_error and data[\"error_log\"]: \n        headers =\
+          \ [\n            \"sheet_name\", \"row_no\", \"rule_id\", \"category\",\n\
+          \            \"item_name\", \"check_item\", \"severity\",\n            \"\
+          error_message\", \"fix_action\"\n        ]\n        error_log_md = \"| \"\
+          \ + \" | \".join(headers) + \" |\\n\"\n        error_log_md += \"| \" +\
+          \ \" | \".join([\"---\"] * len(headers)) + \" |\\n\"\n        for row in\
+          \ data[\"error_log\"]:  \n            values = [str(row.get(h, \"\")) for\
+          \ h in headers]\n            error_log_md += \"| \" + \" | \".join(values)\
+          \ + \" |\\n\"\n\n    # gis_summary を Markdown 表形式に変換\n    gis_summary_md\
+          \ = \"\"\n    if not has_error and data[\"gis_summary\"]: \n        headers\
+          \ = [\n            \"調査ID\", \"シート名\", \"地域名\", \"調査日時\", \"天気\",\n    \
+          \        \"記帳者\", \"対象樹種\", \"面積(㎡)\", \"斜面位置\", \"斜面方位\",\n           \
+          \ \"傾斜度\", \"緯度\", \"経度\",\n            \"平均樹高(m)\", \"平均枝下高(m)\", \"平均胸高直径(cm)\"\
+          , \"立木本数\"\n        ]\n        gis_summary_md = \"| \" + \" | \".join(headers)\
+          \ + \" |\\n\"\n        gis_summary_md += \"| \" + \" | \".join([\"---\"\
+          ] * len(headers)) + \" |\\n\"\n        for row in data[\"gis_summary\"]:\
+          \ \n            values = [str(row.get(h, \"\")) for h in headers]\n    \
+          \        gis_summary_md += \"| \" + \" | \".join(values) + \" |\\n\"\n\n\
+          \    return {\n        \"has_error\": has_error,\n        \"status\": \"\
+          error\" if has_error else \"success\",\n        \"error_count\": data[\"\
+          error_count\"],\n        \"error_log_md\": error_log_md,\n        \"gis_summary_md\"\
+          : gis_summary_md,\n        \"survey_text_for_llm\": survey_text_for_llm,\n\
+          \    }"
+        code_language: python3
+        desc: json形式のデータをMarkdown形式へ変換する。
+        outputs:
+          error_count:
+            children: null
+            type: number
+          error_log_md:
+            children: null
+            type: string
+          gis_summary_md:
+            children: null
+            type: string
+          has_error:
+            children: null
+            type: boolean
+          status:
+            children: null
+            type: string
+          survey_text_for_llm:
+            children: null
+            type: string
+        selected: false
+        title: コード実行(Markdownへの変換)
+        type: code
+        variables:
+        - value_selector:
+          - '1780355579484'
+          - body
+          value_type: string
+          variable: body
+      height: 96
+      id: '1780371392037'
+      position:
+        x: 377.15066576985475
+        y: -749.5885627268516
+      positionAbsolute:
+        x: 377.15066576985475
+        y: -749.5885627268516
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        desc: xlsxからの、error_log.csvを出力する。
+        outputs:
+        - value_selector:
+          - '1780489017890'
+          - files
+          value_type: array[file]
+          variable: xlsx_error_log_file
+        selected: false
+        title: 出力(xlsx:error.log)
+        type: end
+      height: 116
+      id: '1780372585058'
+      position:
+        x: 3453.5961531462435
+        y: -1370.7971827503898
+      positionAbsolute:
+        x: 3453.5961531462435
+        y: -1370.7971827503898
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        desc: GIS用のCSVフォーマットを出力する。
+        outputs:
+        - value_selector:
+          - '1780489102239'
+          - files
+          value_type: array[file]
+          variable: gis_file
+        - value_selector:
+          - '17807248650960'
+          - body
+          value_type: string
+          variable: no_error_report
+        - value_selector:
+          - '17807248650960'
+          - body
+          value_type: string
+          variable: slack_response
+        selected: false
+        title: 出力出力(エラーなし：GIS用CSV＋Slack投稿)
+        type: end
+      height: 168
+      id: '1780391752679'
+      position:
+        x: 4311.521587776757
+        y: -602.2008058387287
+      positionAbsolute:
+        x: 4311.521587776757
+        y: -602.2008058387287
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: 既存エラーの修正方法と、追加エラー候補についても指示を出すためのプロンプトである。
+        model:
+          completion_params: {}
+          mode: chat
+          name: gpt-5.4
+          provider: langgenius/openai/openai
+        prompt_template:
+        - id: e6828d4e-0fc2-4db8-a6ab-740f3c1d5d50
+          role: system
+          text: '貴方は、森林調査の熟練技術者です。
+
+            森林調査の経験がない人や、現地調査結果入力の作業をただ頼まれた人でも、現地担当者に確認することを前提としつつもエラー内容を理解して修正作業ができるように指示したSlack投稿文を作成してください。'
+        - id: 6e726fd5-44c3-433b-840a-872c64ebb688
+          role: user
+          text: "## エラー情報 \n### エラー件数\n{{#1780371392037.error_count#}}件 \n\n### エラー内容\n\
+            {{#1780442733681.combined_error_md#}}\n\n## 命令\n以下の2つを順番に回答してください。\n\n\
+            ### 1. 既存エラーの修正方法\n {{#1780371392037.error_log_md#}}のエラーについて、経験のない人でも理解できるよう具体的な修正方法を指示してください。\n\
+            \n### 2. その他気になる点\n上記エラー以外に、{{#1780442733681.llm_error_json#}}について、数値の矛盾や入力ミスと思われる点があれば指摘してください。なければ「なし」と出力してください。\n\
+            \n### Slack投稿文の必須項目\n必ず先頭に現地担当者への確認をすることを前提とした文章を出力してください。\n\n### 制約\n\
+            - 専門用語は使わないようにしてください。\n- 修正後の数値や選択肢そのものの提案はしないでください。\n- 修正を行う理由についても、説明してください。"
+        selected: false
+        title: 'LLM(既存エラー内容・追加エラー候補に対するSlack投稿文作成) '
+        type: llm
+        vision:
+          enabled: false
+      height: 132
+      id: '1780411223891'
+      position:
+        x: 1956.5890080124564
+        y: -855.5315627788589
+      positionAbsolute:
+        x: 1956.5890080124564
+        y: -855.5315627788589
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        authorization:
+          config: null
+          type: no-auth
+        body:
+          data:
+          - file:
+            - '1780792434830'
+            - output
+            id: key-value-1017
+            key: survey_file
+            type: file
+            value: ''
+          type: form-data
+        desc: xlsxからのエラー内容について、UTF-8 BOM付きのCSVとして出力する。
+        headers: ''
+        method: post
+        params: ''
+        retry_config:
+          max_retries: 3
+          retry_enabled: true
+          retry_interval: 100
+        selected: false
+        ssl_verify: true
+        timeout:
+          connect: 10
+          max_connect_timeout: 0
+          max_read_timeout: 0
+          max_write_timeout: 0
+          read: 60
+          write: 60
+        title: HTTPリクエスト(xlsx:export_error_log)
+        type: http-request
+        url: '{{#env.Render_API_BASE_URL#}}/export_error_log'
+        variables: []
+      height: 184
+      id: '1780489017890'
+      position:
+        x: 2907.6346031753114
+        y: -1578.0527945825718
+      positionAbsolute:
+        x: 2907.6346031753114
+        y: -1578.0527945825718
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        authorization:
+          config: null
+          type: no-auth
+        body:
+          data:
+          - file:
+            - '1780792434830'
+            - output
+            id: key-value-1179
+            key: survey_file
+            type: file
+            value: ''
+          type: form-data
+        desc: GIS用フォーマットを、UTF-8 BOM付きCSVとして出力する。
+        headers: ''
+        method: post
+        params: ''
+        retry_config:
+          max_retries: 3
+          retry_enabled: true
+          retry_interval: 100
+        selected: false
+        ssl_verify: true
+        timeout:
+          max_connect_timeout: 0
+          max_read_timeout: 0
+          max_write_timeout: 0
+        title: HTTP リクエスト(export_gis_csv)
+        type: http-request
+        url: '{{#env.Render_API_BASE_URL#}}/export_gis_csv'
+        variables: []
+      height: 184
+      id: '1780489102239'
+      position:
+        x: 1863.2796163347025
+        y: -421.1271239116981
+      positionAbsolute:
+        x: 1863.2796163347025
+        y: -421.1271239116981
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: 追加エラー候補を抽出するためのプロンプトである。
+        model:
+          completion_params: {}
+          mode: chat
+          name: gpt-5.4
+          provider: langgenius/openai/openai
+        prompt_template:
+        - id: 08eddf29-063d-400a-bc64-4ed20d818666
+          role: system
+          text: '貴方は、森林調査の熟練技術者です。
+
+            調査データである{{#1780355579484.body#}}を注意深く読み、既存ルールのファイルから特定した{{#1780371392037.error_log_md#}}以外の、数値の矛盾や入力ミスの可能性があるものを「追加エラー候補」として、指定されたJSON形式で出力してください。
+
+            追加エラー候補がなければ、 [] を出力してください。'
+        - id: a319ae93-b680-4a19-94df-1f4205bb8765
+          role: user
+          text: "## 調査データ\n{{#1780355579484.body#}}\n\n## 既に検出されたエラー\n{{#1780371392037.error_log_md#}}\n\
+            \n## エラー候補がある可能性がある調査データ\n{{#1780371392037.survey_text_for_llm#}}\n\n\
+            ## 作業手順\n以下の手順で、エラー候補を抽出してください。\n-  {{#1780371392037.survey_text_for_llm#}}を検査してください。\n\
+            - 特に、以下の点について注意深く読んでください。\n　- 基本情報の対象樹種と、毎木情報の樹種の違いについては、調査を行った地区において妥当かどうか判断してください。\n\
+            　- （樹高／（胸高直径＊100））で計算を行い、樹高に対して胸高直径が妥当かどうか判断してください。\n\n## JSON形式\n[\n\
+            \  {\n    \"sheet_name\": \"シート名\",\n    \"row_no\": \"行番号または基本情報\",\n\
+            \    \"rule_id\": \"R_LLM_001\",\n    \"category\": \"毎木または基本情報\",\n \
+            \   \"check_item\": \"チェック内容の説明\",\n    \"target_column\": \"エラーのある項目名\"\
+            ,\n    \"condition\": \"エラーと判断する条件\",\n    \"severity\": \"warning\",\n\
+            \    \"message\": \"エラーの説明\",\n    \"fix_action\": \"修正方法\",\n    \"note\"\
+            : \"\"\n  }\n]"
+        selected: false
+        structured_output_enabled: true
+        title: LLM(追加エラー候補抽出)
+        type: llm
+        vision:
+          enabled: false
+      height: 132
+      id: '1780442563959'
+      position:
+        x: 740.2150836709361
+        y: -749.5885627268516
+      positionAbsolute:
+        x: 740.2150836709361
+        y: -749.5885627268516
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        code: "import json\n\ndef main(existing_error_md: str, llm_error_json: str)\
+          \ -> dict:\n    \n    if existing_error_md is None:\n        existing_error_md\
+          \ = \"\"\n\n    if llm_error_json is None:\n        llm_error_json = \"\"\
+          \n\n    try:\n        text = llm_error_json.strip()\n\n        # LLMが ```json\
+          \ ... ``` の形で返した場合に備える\n        if text.startswith(\"```\"):\n         \
+          \   text = text.replace(\"```json\", \"\")\n            text = text.replace(\"\
+          ```\", \"\")\n            text = text.strip()\n\n        if text == \"\"\
+          :\n            llm_errors = []\n        else:\n            llm_errors =\
+          \ json.loads(text)\n\n        if isinstance(llm_errors, str):\n        \
+          \    llm_errors = json.loads(llm_errors)\n\n        if not isinstance(llm_errors,\
+          \ list):\n            llm_errors = []\n\n    except Exception:\n       \
+          \ llm_errors = []\n\n    # 空の辞書や中身のない候補を除外する\n    cleaned_llm_errors = []\n\
+          \n    for row in llm_errors:\n        if not isinstance(row, dict):\n  \
+          \          continue\n\n        message = str(row.get(\"message\", \"\")\
+          \ or row.get(\"error_message\", \"\")).strip()\n        rule_id = str(row.get(\"\
+          rule_id\", \"\")).strip()\n        item_name = str(row.get(\"item_name\"\
+          , \"\") or row.get(\"target_column\", \"\")).strip()\n\n        if not message\
+          \ and not rule_id and not item_name:\n            continue\n\n        cleaned_llm_errors.append(row)\n\
+          \n    llm_errors = cleaned_llm_errors\n    has_llm_error = len(llm_errors)\
+          \ > 0\n\n    llm_error_md = \"\"\n\n    if has_llm_error:\n        headers\
+          \ = [\n            \"sheet_name\",\n            \"row_no\",\n          \
+          \  \"rule_id\",\n            \"category\",\n            \"item_name\",\n\
+          \            \"check_item\",\n            \"severity\",\n            \"\
+          error_message\",\n            \"fix_action\",\n        ]\n\n        llm_error_md\
+          \ = \"| \" + \" | \".join(headers) + \" |\\n\"\n        llm_error_md +=\
+          \ \"| \" + \" | \".join([\"---\"] * len(headers)) + \" |\\n\"\n\n      \
+          \  for row in llm_errors:\n            values = [str(row.get(h, \"\")) for\
+          \ h in headers]\n            llm_error_md += \"| \" + \" | \".join(values)\
+          \ + \" |\\n\"\n\n    combined_error_md = existing_error_md\n\n    if llm_error_md:\n\
+          \        combined_error_md += \"\\n\\n### LLMが検出した追加エラー\\n\"\n        combined_error_md\
+          \ += llm_error_md\n\n    return {\n        \"combined_error_md\": combined_error_md,\n\
+          \        \"llm_error_json\": json.dumps(llm_errors, ensure_ascii=False),\n\
+          \        \"has_llm_error\": has_llm_error,\n    }"
+        code_language: python3
+        desc: 既存ルールのファイルから抽出したエラーと、抽出した追加エラー候補を結合する。
+        outputs:
+          combined_error_md:
+            children: null
+            type: string
+          has_llm_error:
+            children: null
+            type: boolean
+          llm_error_json:
+            children: null
+            type: string
+        selected: false
+        title: コード実行(既存エラー+追加エラー候補結合)
+        type: code
+        variables:
+        - value_selector:
+          - '1780371392037'
+          - error_log_md
+          value_type: string
+          variable: existing_error_md
+        - value_selector:
+          - '1780442563959'
+          - text
+          value_type: string
+          variable: llm_error_json
+      height: 96
+      id: '1780442733681'
+      position:
+        x: 1038.423551098591
+        y: -744.3656258984058
+      positionAbsolute:
+        x: 1038.423551098591
+        y: -744.3656258984058
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        authorization:
+          config: null
+          type: no-auth
+        body:
+          data:
+          - id: key-value-334
+            key: ''
+            type: text
+            value: '{{#1780442733681.llm_error_json#}}'
+          type: json
+        desc: RenderによるFastAPI呼び出しを行い、main.pyの「add_rules」処理を実行し、追加エラー候補をファイルに追加する。
+        headers: Content-Type:application/json
+        method: post
+        params: ''
+        retry_config:
+          max_retries: 3
+          retry_enabled: true
+          retry_interval: 100
+        selected: false
+        ssl_verify: true
+        timeout:
+          connect: 10
+          max_connect_timeout: 0
+          max_read_timeout: 0
+          max_write_timeout: 0
+          read: 60
+          write: 60
+        title: HTTPリクエスト(add_rules)
+        type: http-request
+        url: '{{#env.Render_API_BASE_URL#}}/add_rules'
+        variables: []
+      height: 200
+      id: '1780442810188'
+      position:
+        x: 1929.184519390821
+        y: -1312.0044882180987
+      positionAbsolute:
+        x: 1929.184519390821
+        y: -1312.0044882180987
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        authorization:
+          config: null
+          type: no-auth
+        body:
+          data:
+          - id: key-value-43
+            key: ''
+            type: text
+            value: "{\n  \"text\": \"{{#1780411223891.text#}}\"\n}"
+          type: json
+        desc: エラー修正指示・確認についての文章をSlackに投稿する。
+        headers: ''
+        method: post
+        params: ''
+        retry_config:
+          max_retries: 3
+          retry_enabled: true
+          retry_interval: 100
+        selected: false
+        ssl_verify: true
+        timeout:
+          connect: 10
+          max_connect_timeout: 0
+          max_read_timeout: 0
+          max_write_timeout: 0
+          read: 60
+          write: 60
+        title: HTTP リクエスト(Slack投稿)
+        type: http-request
+        url: '{{#env.slack_webhook_url#}}'
+        variables: []
+      height: 168
+      id: '1780457989767'
+      position:
+        x: 3476.6908781508064
+        y: -669.9043908550896
+      positionAbsolute:
+        x: 3476.6908781508064
+        y: -669.9043908550896
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        desc: GIS用のCSVフォーマットを出力するが追加エラー候補もSlackに投稿する。
+        outputs:
+        - value_selector:
+          - '1780489102239'
+          - files
+          value_type: array[file]
+          variable: gis_file
+        - value_selector:
+          - '1780411223891'
+          - text
+          value_type: string
+          variable: slack_message
+        - value_selector:
+          - '1780457989767'
+          - body
+          value_type: string
+          variable: slack_response
+        selected: false
+        title: 出力(GIS用CSV＋追加エラー候補通知)
+        type: end
+      height: 184
+      id: '1780724775434'
+      position:
+        x: 4494.151549193572
+        y: -920.4382715771064
+      positionAbsolute:
+        x: 4494.151549193572
+        y: -920.4382715771064
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        authorization:
+          config: null
+          type: no-auth
+        body:
+          data:
+          - id: key-value-43
+            key: ''
+            type: text
+            value: '{"text": "{{{#1782500433611.slack_message#}}}}"}'
+          type: json
+        desc: エラーがない内容の文章をSlackに投稿する。
+        headers: ''
+        isInIteration: false
+        isInLoop: false
+        method: post
+        params: ''
+        retry_config:
+          max_retries: 3
+          retry_enabled: true
+          retry_interval: 100
+        selected: false
+        ssl_verify: true
+        timeout:
+          connect: 10
+          max_connect_timeout: 0
+          max_read_timeout: 0
+          max_write_timeout: 0
+          read: 60
+          write: 60
+        title: HTTP リクエスト(Slack投稿)(エラーなし)
+        type: http-request
+        url: '{{#env.slack_webhook_url#}}'
+        variables: []
+      height: 152
+      id: '17807248650960'
+      position:
+        x: 3825.002634269097
+        y: -398.2702356985866
+      positionAbsolute:
+        x: 3825.002634269097
+        y: -398.2702356985866
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        cases:
+        - case_id: 'true'
+          conditions:
+          - comparison_operator: contains
+            id: e1c19b66-99a9-462b-b158-e5b944fe5d65
+            sub_variable_condition:
+              case_id: 042c556d-bacf-407d-9e74-77a13cce0390
+              conditions:
+              - comparison_operator: is
+                id: 3b1007ba-909c-4df9-8112-13ae2e901bba
+                key: extension
+                value: .xlsx
+                varType: string
+              logical_operator: and
+            value: ''
+            varType: array[file]
+            variable_selector:
+            - '1780096256163'
+            - survey_file
+          id: 'true'
+          logical_operator: and
+        desc: ファイル拡張子が、xlsxかPDFかの違いにより処理を分岐させる。
+        selected: false
+        title: IF/ELSE(ファイル形式分類)
+        type: if-else
+      height: 192
+      id: '1780725444570'
+      position:
+        x: -2964.487339352801
+        y: -488.6622569158508
+      positionAbsolute:
+        x: -2964.487339352801
+        y: -488.6622569158508
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        authorization:
+          config: null
+          type: no-auth
+        body:
+          data:
+          - file:
+            - '1780096256163'
+            - survey_file
+            id: key-value-417
+            key: pdf_file
+            type: file
+            value: ''
+          type: form-data
+        desc: google-cloud-visionとPyMuPDFを用いて、PDFから文字、数字の抽出を実行する。
+        headers: ''
+        method: post
+        params: ''
+        retry_config:
+          max_retries: 3
+          retry_enabled: true
+          retry_interval: 100
+        selected: false
+        ssl_verify: true
+        timeout:
+          connect: 10
+          max_connect_timeout: 0
+          max_read_timeout: 0
+          max_write_timeout: 0
+          read: 60
+          write: 60
+        title: HTTP リクエスト(pdf_ocr)
+        type: http-request
+        url: '{{#env.Render_API_BASE_URL#}}/ocr_pdf'
+        variables: []
+      height: 184
+      id: '1780734950724'
+      position:
+        x: -2629.840313686911
+        y: -71.93074407017019
+      positionAbsolute:
+        x: -2629.840313686911
+        y: -71.93074407017019
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        code: "import json\n\ndef main(body: str) -> dict:\n    data = json.loads(body)\n\
+          \n    # ocr_warningsをリストで受け取る\n    warnings = data.get(\"ocr_warnings\"\
+          , [])\n\n    # Difyはリスト型を後続ノードに渡しにくいため、改行区切りのテキストに変換する\n    ocr_warning_text\
+          \ = \"\\n\".join(warnings) if warnings else \"\"\n\n    return {\n     \
+          \   \"ocr_text\": data.get(\"text\", \"\"),\n        \"ocr_warning_text\"\
+          : ocr_warning_text,\n        \"has_ocr_warning\": len(warnings) > 0\n  \
+          \  }"
+        code_language: python3
+        desc: OCRから読み取ったテキストを、jsonに変換する。
+        outputs:
+          has_ocr_warning:
+            children: null
+            type: boolean
+          ocr_text:
+            children: null
+            type: string
+          ocr_warning_text:
+            children: null
+            type: string
+        selected: false
+        title: コード実行(テキスト形式への変換)
+        type: code
+        variables:
+        - value_selector:
+          - '1780734950724'
+          - body
+          value_type: string
+          variable: body
+      height: 96
+      id: '1780735730593'
+      position:
+        x: -2185.998564754208
+        y: -16.511411817708705
+      positionAbsolute:
+        x: -2185.998564754208
+        y: -16.511411817708705
+      selected: true
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: OCRからのテキスト読み取りのプロンプトである。
+        model:
+          completion_params: {}
+          mode: chat
+          name: gpt-5.4
+          provider: langgenius/openai/openai
+        prompt_config:
+          jinja2_variables: []
+        prompt_template:
+        - id: e431c9bd-09f8-4872-8f14-925d9dc09fa1
+          role: system
+          text: 'あなたはOCR後処理の校正者です。
+
+            与えられたOCRテキストである{{#1780735730593.ocr_text#}}を読み取り、指定のJSON形式だけを出力してください。'
+        - edition_type: basic
+          id: 276f44e5-8d8d-401d-acd9-fa115561942f
+          role: user
+          text: "- ## OCR警告\n{{#1780735730593.ocr_warning_text#}}\n\n※警告があるページは読み取りが不完全な可能性があります。該当ページの項目は積極的に\
+            \ \"OCR_UNREADABLE\" を使用してください。\n\n## OCRテキスト\n{{#1780735730593.ocr_text#}}\n\
+            \n## 前提条件\n- 紙に手書きで記載した文字や数字をOCRで抽出しております。\n- 二重の取り消し線や乱雑な字で記載されている場合がございます。\n\
+            - 汚れや折れ、破れがある場合がございます。\n\n## 絶対条件\n以下の条件を絶対に守ってください。\n- 値を確認できない場合は null\
+            \ を出力してください。\n- 数値項目についても、確認できない場合は 0 ではなく null を出力してください。\n- ただし、OCRテキストに文字や数字の痕跡はあるが判読できない場合は、null\
+            \ ではなく \"OCR_UNREADABLE\" を出力してください。\n\n## 指定のJSON形式\n\"null\"ではなく、\"\
+            OCR_UNREADABLE\"を出力する場合は、以下の\"null\"は \"OCR_UNREADABLE\" に変更してください\"\n\
+            {\n  \"plots\": [\n    {\n      \"調査ID\": null, \"地域名\": null, \"調査日時\"\
+            : null, \"天気\": null,\n      \"記帳者\": null, \"対象樹種\": null, \"面積(㎡)\"\
+            : null,\n      \"斜面位置\": null, \"斜面方位\": null, \"傾斜度\": null, \"緯度\":\
+            \ null, \"経度\": null,\n      \"trees\": [\n        {\"番号\": null, \"樹種\"\
+            : null, \"樹高(m)\": null, \"枝下高(m)\": null,\n         \"胸高直径(cm)\": null,\
+            \ \"異常区分\": null, \"被害区分\": null, \"備考\": \"\"}\n      ]\n    }\n  ]\n\
+            }"
+        selected: false
+        title: LLM(OCRからの文字・数字抽出)
+        type: llm
+        vision:
+          enabled: false
+      height: 132
+      id: '1780736501150'
+      position:
+        x: -1778.2961676367474
+        y: -44.981112996862464
+      positionAbsolute:
+        x: -1778.2961676367474
+        y: -44.981112996862464
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        code: "import json\n\ndef main(llm_text: str) -> dict:\n    # 入力が空の場合でもエラーにならないようにする\n\
+          \    s = (llm_text or \"\").strip()\n\n    # Markdownのコードブロックを除去する\n   \
+          \ if s.startswith(\"```\") and s.endswith(\"```\"):\n        # 最初と最後の ```\
+          \ を削除する\n        s = s[3:-3].strip()\n\n        # 先頭に json と書かれている場合は削除する\n\
+          \        if s.lower().startswith(\"json\"):\n            s = s[4:].strip()\n\
+          \n    try:\n        # JSON文字列をPythonのデータへ変換する\n        data = json.loads(s)\n\
+          \n        return {\n            \"plots_json\": json.dumps(data, ensure_ascii=False),\n\
+          \            \"parse_ok\": True,\n            \"error_message\": \"\"\n\
+          \        }\n\n    except Exception as e:\n        # 読み込みに失敗した場合は、原因も出力する\n\
+          \        return {\n            \"plots_json\": json.dumps({\"plots\": []},\
+          \ ensure_ascii=False),\n            \"parse_ok\": False,\n            \"\
+          error_message\": str(e)\n        }"
+        code_language: python3
+        desc: 生成AIでは、jsonで読み取ったデータをコードブロックすることがあるため整形を行う。
+        outputs:
+          error_message:
+            children: null
+            type: string
+          parse_ok:
+            children: null
+            type: boolean
+          plots_json:
+            children: null
+            type: string
+        selected: false
+        title: コード実行(コードブロック対策)
+        type: code
+        variables:
+        - value_selector:
+          - '1780736501150'
+          - text
+          value_type: string
+          variable: llm_text
+      height: 96
+      id: '1780746211984'
+      position:
+        x: -1304.0967123469384
+        y: 153.74733475608787
+      positionAbsolute:
+        x: -1304.0967123469384
+        y: 153.74733475608787
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        authorization:
+          config: null
+          type: no-auth
+        body:
+          data:
+          - id: key-value-130
+            key: ''
+            type: text
+            value: '{{#1780746211984.plots_json#}}'
+          type: json
+        desc: jsonから、xlsxフォーマットへ変換する。
+        headers: Content-Type:application/json
+        method: post
+        params: ''
+        retry_config:
+          max_retries: 3
+          retry_enabled: true
+          retry_interval: 100
+        selected: false
+        ssl_verify: true
+        timeout:
+          connect: 10
+          max_connect_timeout: 0
+          max_read_timeout: 0
+          max_write_timeout: 0
+          read: 60
+          write: 60
+        title: HTTP リクエスト(xlsxフォーマットへの変換)
+        type: http-request
+        url: '{{#env.Render_API_BASE_URL#}}/build_xlsx_from_json'
+        variables: []
+      height: 168
+      id: '1780746305685'
+      position:
+        x: -832.6389464209844
+        y: -163.598502612454
+      positionAbsolute:
+        x: -832.6389464209844
+        y: -163.598502612454
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        desc: xlsx、PDF両方を1つの変数に集約し、次のanalyze処理を実行可能にする。
+        output_type: array[file]
+        selected: false
+        title: 変数集約器(xlsx、PDF形式を次の処理に進ませる)
+        type: variable-aggregator
+        variables:
+        - - '1780746305685'
+          - files
+        - - '1780096256163'
+          - survey_file
+      height: 178
+      id: '1780792434830'
+      position:
+        x: -401.4153038554084
+        y: -527.2059907402597
+      positionAbsolute:
+        x: -401.4153038554084
+        y: -527.2059907402597
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        cases:
+        - case_id: 'true'
+          conditions:
+          - comparison_operator: contains
+            id: e1c19b66-99a9-462b-b158-e5b944fe5d65
+            sub_variable_condition:
+              case_id: 042c556d-bacf-407d-9e74-77a13cce0390
+              conditions:
+              - comparison_operator: is
+                id: 3b1007ba-909c-4df9-8112-13ae2e901bba
+                key: extension
+                value: .xlsx
+                varType: string
+              logical_operator: and
+            value: ''
+            varType: array[file]
+            variable_selector:
+            - '1780096256163'
+            - survey_file
+          id: 'true'
+          logical_operator: and
+        desc: フファイル拡張子が、xlsxかPDFかの違いによりエラー内容の処理を分岐させる。
+        isInIteration: false
+        isInLoop: false
+        selected: false
+        title: IF/ELSE(error出力分岐)
+        type: if-else
+      height: 192
+      id: '17808025803790'
+      position:
+        x: 2326.569557580583
+        y: -1349.9129038424433
+      positionAbsolute:
+        x: 2326.569557580583
+        y: -1349.9129038424433
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        authorization:
+          config: null
+          type: no-auth
+        body:
+          data:
+          - file:
+            - '1780792434830'
+            - output
+            id: key-value-1017
+            key: survey_file
+            type: file
+            value: ''
+          type: form-data
+        desc: PDFからのエラー内容について、UTF-8 BOM付きのCSVとして出力する。
+        headers: ''
+        isInIteration: false
+        isInLoop: false
+        method: post
+        params: ''
+        retry_config:
+          max_retries: 3
+          retry_enabled: true
+          retry_interval: 100
+        selected: false
+        ssl_verify: true
+        timeout:
+          connect: 10
+          max_connect_timeout: 0
+          max_read_timeout: 0
+          max_write_timeout: 0
+          read: 60
+          write: 60
+        title: 'HTTPリクエスト(PDF:export_error_log) '
+        type: http-request
+        url: '{{#env.Render_API_BASE_URL#}}/export_error_log'
+        variables: []
+      height: 184
+      id: '17808026966440'
+      position:
+        x: 2919.093860632809
+        y: -1136.0079228231075
+      positionAbsolute:
+        x: 2919.093860632809
+        y: -1136.0079228231075
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        desc: PDFからの、error_log.csvを出力する。
+        isInIteration: false
+        isInLoop: false
+        outputs:
+        - value_selector:
+          - '17808026966440'
+          - files
+          value_type: array[file]
+          variable: PDF_error_log_file
+        selected: false
+        title: 出力(PDF:error.log)
+        type: end
+      height: 116
+      id: '17808027726860'
+      position:
+        x: 3441.022466068313
+        y: -1129.2356400113285
+      positionAbsolute:
+        x: 3441.022466068313
+        y: -1129.2356400113285
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        authorization:
+          config: null
+          type: no-auth
+        body:
+          data:
+          - id: key-value-1746
+            key: ''
+            type: text
+            value: '{{#1780746211984.plots_json#}}'
+          type: json
+        desc: PDFからOCRで読み取った内容を、csvへ出力する。
+        headers: ''
+        method: post
+        params: ''
+        retry_config:
+          max_retries: 3
+          retry_enabled: true
+          retry_interval: 100
+        selected: false
+        ssl_verify: true
+        timeout:
+          connect: 10
+          max_connect_timeout: 0
+          max_read_timeout: 0
+          max_write_timeout: 0
+          read: 60
+          write: 60
+        title: HTTPリクエスト(PDF:export_ocr_csv)
+        type: http-request
+        url: '{{#env.Render_API_BASE_URL#}}/export_ocr_csv'
+        variables: []
+      height: 184
+      id: '1780805142194'
+      position:
+        x: 2853.568357509083
+        y: 217.4301516911673
+      positionAbsolute:
+        x: 2853.568357509083
+        y: 217.4301516911673
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        desc: PDFからの読み取り結果を確認するために、ocr_csvを出力する。
+        outputs:
+        - value_selector:
+          - '1780805142194'
+          - files
+          value_type: array[file]
+          variable: ocr_csv_files
+        selected: false
+        title: 出力(PDF:OCR抽出CSV)
+        type: end
+      height: 132
+      id: '1780805428741'
+      position:
+        x: 3471.629416096285
+        y: 233.17792876110514
+      positionAbsolute:
+        x: 3471.629416096285
+        y: 233.17792876110514
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        cases:
+        - case_id: 'true'
+          conditions:
+          - comparison_operator: is
+            id: d95ce352-884b-447e-9aa8-7d6742ea803a
+            value: true
+            varType: boolean
+            variable_selector:
+            - '1780442733681'
+            - has_llm_error
+          id: 'true'
+          logical_operator: and
+        desc: 既存ルールのファイルではエラーがなかった場合において、追加エラー候補があるかどうかで処理を分岐させる。
+        selected: false
+        title: 条件分岐(追加エラー候補通知)
+        type: if-else
+      height: 208
+      id: '1782498818116'
+      position:
+        x: 2444.0013167007432
+        y: -411.60271759988893
+      positionAbsolute:
+        x: 2444.0013167007432
+        y: -411.60271759988893
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        code: "def main() -> dict:\n    message = \"チェック完了：エラーはありませんでした。GIS用ファイルを出力しました。\"\
+          \n    return {\n        \"slack_message\": message\n    }"
+        code_language: python3
+        desc: エラーがない場合の、Slack投稿文を送付する。
+        outputs:
+          slack_message:
+            children: null
+            type: string
+        selected: false
+        title: コード実行(エラーなしSlack文作成)
+        type: code
+        variables: []
+      height: 96
+      id: '1782500433611'
+      position:
+        x: 3525.002634269097
+        y: -398.2702356985866
+      positionAbsolute:
+        x: 3525.002634269097
+        y: -398.2702356985866
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    viewport:
+      x: 1272.0230574178483
+      y: 390.5964201796195
+      zoom: 0.7578582832551989
+  rag_pipeline_variables: []
